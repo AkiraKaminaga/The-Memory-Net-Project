@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Memory Network OS</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+
+body{
+background:black;
+color:#ff7dff;
+font-family:'Press Start 2P', monospace;
+margin:0;
+overflow:hidden;
+}
+
+/* CRT CURVE */
+
+body:before{
+content:"";
+position:fixed;
+top:-10%;
+left:-10%;
+width:120%;
+height:120%;
+pointer-events:none;
+box-shadow:inset 0 0 200px rgba(0,0,0,.9);
+border-radius:80px;
+}
+
+/* SCANLINES */
+
+body:after{
+content:"";
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:linear-gradient(rgba(255,255,255,.06) 50%, transparent 50%);
+background-size:100% 4px;
+pointer-events:none;
+}
+
+/* CRT FLICKER */
+
+@keyframes flicker{
+0%{opacity:.96}
+50%{opacity:1}
+100%{opacity:.97}
+}
+
+body{
+animation:flicker .12s infinite;
+}
+
+/* GLOW */
+
+.glow{
+text-shadow:
+0 0 5px #ff00ff,
+0 0 10px #ff00ff,
+0 0 20px #ff00ff,
+0 0 40px #aa00ff;
+}
+
+/* TOP BAR */
+
+.topbar{
+border-bottom:2px solid #ff00ff;
+padding:10px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+/* TITLE */
+
+.logo{
+border:2px solid #ff00ff;
+padding:6px 20px;
+box-shadow:0 0 10px #ff00ff;
+}
+
+/* MENUS */
+
+.menu{
+border-bottom:2px solid #ff00ff;
+padding:10px;
+display:flex;
+gap:40px;
+}
+
+.menu div{
+cursor:pointer;
+}
+
+/* DESKTOP */
+
+.desktop{
+display:flex;
+height:calc(100vh - 140px);
+}
+
+/* LEFT PANEL */
+
+.left{
+width:40%;
+padding:20px;
+}
+
+.left div{
+margin:12px 0;
+cursor:pointer;
+}
+
+/* DIVIDER */
+
+.divider{
+width:5%;
+background:#ff7dff;
+box-shadow:0 0 15px #ff00ff;
+}
+
+/* RIGHT PANEL */
+
+.right{
+width:55%;
+padding:20px;
+}
+
+/* WINDOWS */
+
+.window{
+position:absolute;
+top:160px;
+left:200px;
+width:420px;
+background:black;
+border:2px solid #ff00ff;
+padding:20px;
+box-shadow:
+0 0 10px #ff00ff,
+0 0 20px #ff00ff,
+inset 0 0 10px #ff00ff;
+cursor:move;
+}
+
+.windowHeader{
+display:flex;
+justify-content:space-between;
+margin-bottom:10px;
+}
+
+.closeBtn{
+cursor:pointer;
+}
+
+.typing{
+white-space:pre-line;
+}
+
+</style>
+</head>
+
+<body class="glow">
+
+<div id="boot" onclick="bootMemoryOS()" style="display:flex;align-items:center;justify-content:center;height:100vh;cursor:pointer">
+<div id="boottext"></div>
+</div>
+
+<div id="os" style="display:none">
+
+<div class="topbar">
+<span onclick="location.reload()">❌</span>
+<div class="logo">THE MEMORY WEB</div>
+<span>📘</span>
+</div>
+
+<div class="menu">
+<div onclick="openWindow('Settings',[{name:'Settings coming soon',url:'#'}])">Settings</div>
+<div onclick="news()">News</div>
+<div onclick="mail()">Mail</div>
+<div onclick="openWindow('Banking',bankLinks)">Banking</div>
+</div>
+
+<div class="menu">
+<div onclick="alert('Language system coming soon.')">Language</div>
+<div onclick="alert('Donations not enabled.')">Donate</div>
+</div>
+
+<div class="desktop">
+
+<div class="left">
+
+<div onclick="social()">_SocialRealms 💬</div>
+<div onclick="personal()">_PersonalPages 🎨</div>
+<div onclick="video()">_VideoVault 🎥</div>
+<div onclick="boards()">_MessageBoards 📄</div>
+<div onclick="shop()">_ShopZone 💰</div>
+<div onclick="gaming()">_Gaming 👾</div>
+
+</div>
+
+<div class="divider"></div>
+
+<div class="right">
+
+<h2>Sign The Guestbook</h2>
+
+<input id="name" placeholder="name"><br><br>
+
+<textarea id="msg" placeholder="message"></textarea><br><br>
+
+<button onclick="sign()">Sign</button>
+
+<div id="entries"></div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+let text=`Connecting to Memory Node 01...
+Routing through independent networks...
+Initializing decentralized layers...
+Welcome to the Third Internet.`
+
+let i=0
+
+function typeBoot(){
+if(i<text.length){
+boottext.innerHTML+=text.charAt(i)
+i++
+setTimeout(typeBoot,40)
+}else{
+setTimeout(()=>{
+boot.style.display="none"
+os.style.display="block"
+},800)
+}
+}
+typeBoot()
+
+let currentLinks=[]
+
+function openWindow(title,links){
+
+let win=document.createElement("div")
+win.className="window"
+
+let header=document.createElement("div")
+header.className="windowHeader"
+
+let titleText=document.createElement("div")
+titleText.innerText=title
+
+let close=document.createElement("div")
+close.innerText="❌"
+close.className="closeBtn"
+close.onclick=()=>win.remove()
+
+header.appendChild(titleText)
+header.appendChild(close)
+
+let content=document.createElement("div")
+content.className="typing"
+
+let txt=""
+
+currentLinks=links
+
+links.forEach((l,i)=>{
+txt+=(i+1)+" "+l.name+"\n"
+})
+
+content.innerText=txt+"\n\nPress number keys to open."
+
+win.appendChild(header)
+win.appendChild(content)
+
+document.body.appendChild(win)
+
+drag(win)
+
+}
+
+function drag(el){
+
+let pos1=0,pos2=0,pos3=0,pos4=0
+
+el.onmousedown=function(e){
+pos3=e.clientX
+pos4=e.clientY
+document.onmouseup=()=>document.onmousemove=null
+document.onmousemove=function(e){
+pos1=pos3-e.clientX
+pos2=pos4-e.clientY
+pos3=e.clientX
+pos4=e.clientY
+el.style.top=(el.offsetTop-pos2)+"px"
+el.style.left=(el.offsetLeft-pos1)+"px"
+}
+}
+
+}
+
+document.addEventListener("keydown",function(e){
+let num=parseInt(e.key)
+if(num && currentLinks[num-1]){
+window.open(currentLinks[num-1].url)
+}
+})
+
+const bankLinks=[
+{name:"Privacy.com",url:"https://privacy.com"},
+{name:"Revolut",url:"https://revolut.com"},
+{name:"Monzo",url:"https://monzo.com"},
+{name:"Monero XMR",url:"https://getmonero.org"}
+]
+
+function personal(){
+openWindow("Personal Pages",[
+{name:"BMH Online",url:"https://bmhthemes.com"},
+{name:"Cini's Dreamland",url:"https://cinni.net"},
+{name:"Hotline Cafe",url:"https://hotlinecafe.com"},
+{name:"John Nesky Makes Things",url:"https://johnnesky.com"}
+])
+}
+
+function boards(){
+openWindow("Message Boards",[
+{name:"Lemmy",url:"https://lemmy.ml"},
+{name:"Funkwhale",url:"https://funkwhale.audio"},
+{name:"Kbin",url:"https://kbin.social"},
+{name:"Tildeverse",url:"https://tildeverse.org"},
+{name:"Wikistage",url:"https://wikistage.org"}
+])
+}
+
+function shop(){
+openWindow("ShopZone",[
+{name:"42Lolita",url:"https://42lolita.com"},
+{name:"Berserk",url:"https://berserk.com"},
+{name:"Depop",url:"https://depop.com"},
+{name:"Wildfang",url:"https://wildfang.com"},
+{name:"TomboyX",url:"https://tomboyx.com"}
+])
+}
+
+function social(){
+openWindow("Social Realms",[
+{name:"SpaceHey",url:"https://spacehey.com"},
+{name:"Bluesky",url:"https://bsky.app"},
+{name:"Mastodon",url:"https://mastodon.social"},
+{name:"Are.na",url:"https://are.na"},
+{name:"Neocities",url:"https://neocities.org"}
+])
+}
+
+function video(){
+openWindow("Video Vault",[
+{name:"VidLii",url:"https://vidlii.com"},
+{name:"BitChute",url:"https://bitchute.com"},
+{name:"Odysee",url:"https://odysee.com"},
+{name:"PeerTube",url:"https://joinpeertube.org"},
+{name:"Rumble",url:"https://rumble.com"}
+])
+}
+
+function gaming(){
+openWindow("Gaming",[
+{name:"GOG",url:"https://gog.com"},
+{name:"itch.io",url:"https://itch.io"},
+{name:"GamersGate",url:"https://gamersgate.com"},
+{name:"eStarland",url:"https://estarland.com"},
+{name:"PlayAsia",url:"https://playasia.com"}
+])
+}
+
+function news(){
+openWindow("News",[
+{name:"Reuters",url:"https://reuters.com"},
+{name:"Associated Press",url:"https://apnews.com"},
+{name:"BBC",url:"https://bbc.com"},
+{name:"NPR",url:"https://npr.org"},
+{name:"1440",url:"https://join1440.com"}
+])
+}
+
+function mail(){
+openWindow("Mail",[
+{name:"Proton Mail",url:"https://proton.me"},
+{name:"Tuta Mail",url:"https://tuta.com"},
+{name:"Mailfence",url:"https://mailfence.com"},
+{name:"Posteo",url:"https://posteo.de"},
+{name:"Mailbox.org",url:"https://mailbox.org"}
+])
+}
+
+function sign(){
+let name=document.getElementById("name").value
+let msg=document.getElementById("msg").value
+let entry=document.createElement("div")
+entry.innerText=name+": "+msg
+document.getElementById("entries").appendChild(entry)
+}
+
+</script>
+<script>
+function bootMemoryOS() {
+
+    let elem = document.documentElement;
+
+    if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+    }
+
+}
+</script>
+</body>
+</html>

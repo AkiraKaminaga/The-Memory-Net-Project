@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale= 1.0">
+<link rel="icon" type="image/jpg" href="favicon.jpg">
+<title>Memory Net Prototype</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+
+body{
+background:black;
+color:#d76bff;
+font-family:'Press Start 2P', monospace;
+margin:0;
+overflow:hidden;
+}
+
+/* CRT CURVE */
+
+body:before{
+content:"";
+position:fixed;
+top:-5%;
+left:-5%;
+width:110%;
+height:110%;
+background:radial-gradient(circle at center, transparent 60%, rgba(0,0,0,.65));
+pointer-events:none;
+}
+
+/* SCANLINES */
+
+body:after{
+content:"";
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:
+linear-gradient(rgba(255,255,255,.04) 50%, transparent 50%);
+background-size:100% 4px;
+pointer-events:none;
+}
+
+/* CRT FLICKER */
+
+@keyframes flicker{
+0%{opacity:.96}
+50%{opacity:1}
+100%{opacity:.97}
+}
+
+body{
+animation:flicker .15s infinite;
+}
+
+/* PHOSPHOR GLOW */
+
+.glow{
+text-shadow:
+0 0 5px #ff00ff,
+0 0 10px #ff00ff,
+0 0 20px #ff00ff,
+0 0 40px #a000ff,
+0 0 80px #ff00ff;
+}
+
+/* BOOT DISTORTION */
+
+.glitch{
+animation:bootglitch .3s infinite;
+}
+
+@keyframes bootglitch{
+
+0%{transform:skew(0deg)}
+25%{transform:skew(1deg)}
+50%{transform:skew(-1deg)}
+75%{transform:skew(.5deg)}
+100%{transform:skew(0deg)}
+
+}
+
+/* SCREENS */
+
+.screen{
+position:absolute;
+width:100%;
+height:100%;
+display:none;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+text-align:center;
+padding:40px;
+}
+
+.active{
+display:flex;
+}
+
+/* MENU */
+
+.menu-item{
+margin:15px;
+cursor:pointer;
+}
+
+.selected{
+color:white;
+text-shadow:
+0 0 10px #fff,
+0 0 20px #ff00ff;
+}
+
+/* ASCII LOGO */
+
+.logo{
+white-space:pre;
+font-size:10px;
+line-height:14px;
+margin:30px;
+}
+
+/* COPYRIGHT */
+
+.copyright{
+position:absolute;
+top:20px;
+font-size:10px;
+}
+
+/* TERMINAL WINDOW */
+
+.terminal{
+border:3px solid #ff00ff;
+padding:30px;
+max-width:900px;
+background:#070007;
+box-shadow:0 0 20px #ff00ff;
+}
+
+.return{
+margin-top:40px;
+cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<audio id="bootSound" src="boot.wav"></audio>
+<audio id="noise" src="noise.wav" loop></audio>
+
+<!-- BOOT -->
+
+<div id="boot" class="screen active glow glitch">
+
+<div id="boottext">
+Booting Memory Network OS...
+</div>
+
+</div>
+
+<!-- MAIN MENU -->
+
+<div id="menu" class="screen glow">
+
+<div class="copyright">
+Copyright 2026 by Akira Kaminaga. All rights reserved
+</div>
+
+<div class="logo">
+
+███╗   ███╗███████╗███╗   ███╗ ██████╗ ██████╗ ██╗   ██╗
+████╗ ████║██╔════╝████╗ ████║██╔═══██╗██╔══██╗╚██╗ ██╔╝
+██╔████╔██║█████╗  ██╔████╔██║██║   ██║██████╔╝ ╚████╔╝ 
+██║╚██╔╝██║██╔══╝  ██║╚██╔╝██║██║   ██║██╔══██╗  ╚██╔╝  
+██║ ╚═╝ ██║███████╗██║ ╚═╝ ██║╚██████╔╝██║  ██║   ██║   
+╚═╝     ╚═╝╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   
+
+███╗   ██╗███████╗████████╗
+████╗  ██║██╔════╝╚══██╔══╝
+██╔██╗ ██║█████╗     ██║   
+██║╚██╗██║██╔══╝     ██║   
+██║ ╚████║███████╗   ██║   
+╚═╝  ╚═══╝╚══════╝   ╚═╝   
+
+</div>
+
+<div id="menuList">
+
+<div class="menu-item selected">> ENTER THE MEMORY NET</div>
+<div class="menu-item">> WHAT IS THE MEMORY NET?</div>
+<div class="menu-item">> HOW DO I USE THE MEMORY NET?</div>
+<div class="menu-item">> SUBMIT YOUR WEBPAGE</div>
+
+</div>
+
+</div>
+
+<!-- INFO TERMINAL -->
+
+<div id="info" class="screen glow">
+
+<div class="terminal" id="terminalText"></div>
+
+<div class="return glow" onclick="backMenu()">
+> RETURN TO MENU
+</div>
+
+</div>
+
+<script>
+
+let selected=0
+let menu=document.querySelectorAll(".menu-item")
+
+function update(){
+menu.forEach(m=>m.classList.remove("selected"))
+menu[selected].classList.add("selected")
+}
+
+document.addEventListener("keydown",e=>{
+
+if(document.getElementById("menu").classList.contains("active")){
+
+if(e.key==="ArrowDown"){
+selected=(selected+1)%menu.length
+update()
+}
+
+if(e.key==="ArrowUp"){
+selected=(selected-1+menu.length)%menu.length
+update()
+}
+
+if(e.key==="Enter"){
+activate()
+}
+
+}
+
+})
+
+function activate(){
+
+if(selected===0){
+alert("Memory Net navigation screen will be added next.")
+}
+
+if(selected===1){
+
+showInfo(`Memory Net is a community-driven layer of the internet designed to restore creativity, individuality, and human connection.
+
+The concept and execution were created by Akira Kaminaga, with art direction, UI design, logo, and mascot crafted by the talented artist Xylocolza.
+
+The purpose of The Memory Web is to guide users toward a decentralized, private, community-driven browsing experience inspired by the late 90s to early 2000s internet culture, reimagined through a Gen Z / Gen Alpha lens.
+
+Every website featured is created by independent, emerging, LGBTQIA+ friendly creators — free from corporate control and built for authentic expression.`)
+
+}
+
+if(selected===2){
+
+showInfo(`Memory Net is not a search engine — it is a curated layer of the internet.
+
+You discover websites by exploring categories, experimenting, and interacting with the links provided.
+
+You will not find major mainstream platforms here. Instead, you will find independent websites organized into themed categories.
+
+The goal is discovery, not algorithms.`)
+
+}
+
+if(selected===3){
+
+showInfo(`Akira is always looking to promote talented artists, creators, developers, and independent businesses.
+
+Contact:
+
+Email: Akiraomega39@gmail.com
+Instagram: akirakaminagaofficial
+Bluesky: Akira Kaminaga (@akirakaminaga.bsky.social)
+Perfectly Imperfect: @AKIRAKAMINAGA
+noplace: akirakaminaga`)
+
+}
+
+}
+
+function showInfo(text){
+
+document.getElementById("menu").classList.remove("active")
+document.getElementById("info").classList.add("active")
+
+document.getElementById("terminalText").innerText=text
+
+}
+
+function backMenu(){
+
+document.getElementById("info").classList.remove("active")
+document.getElementById("menu").classList.add("active")
+
+}
+
+let text=[
+"Booting Memory Network OS...",
+"Initializing node protocols...",
+"Connecting to decentralized directories...",
+"Loading interface..."
+]
+
+let i=0
+
+function boot(){
+
+if(i<text.length){
+document.getElementById("boottext").innerText=text[i]
+i++
+setTimeout(boot,800)
+}
+else{
+
+document.getElementById("boot").classList.remove("active")
+document.getElementById("menu").classList.add("active")
+
+document.getElementById("bootSound").play()
+document.getElementById("noise").play()
+
+}
+
+}
+
+setTimeout(boot,800)
+
+</script>
+
+</body>
+</html>
