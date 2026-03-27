@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Memory Net OS</title>
+
+<!-- Added a highly reliable retro 8-bit font to guarantee the 70s Atari look -->
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+@font-face {
+  font-family: 'Atari';
+  src: url('https://fonts.cdnfonts.com/s/14882/AtariClassic-Regular.woff') format('woff');
+}
+
+body {
+  margin: 0;
+  background: black;
+  overflow: hidden;
+  font-family: 'Atari', monospace;
+  color: #a855f7;
+}
+
+/* CRT EFFECT */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(168,85,247,0.08),
+    rgba(168,85,247,0.08) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  pointer-events: none;
+  animation: flicker 0.15s infinite;
+  z-index: 999; /* Ensure CRT stays on top of everything */
+}
+
+@keyframes flicker {
+  0% { opacity: 0.9; }
+  50% { opacity: 1; }
+  100% { opacity: 0.92; }
+}
+
+/* SCREEN CURVE */
+#screen {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: inset 0 0 120px rgba(168,85,247,0.4);
+}
+
+/* BOOT SCREEN */
+#boot {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: black;
+  padding: 40px;
+  white-space: pre-line;
+  font-size: 14px; /* Adjusted slightly for the blockier font */
+  line-height: 1.8;
+  /* Enforcing the 70s Atari block font with crisp pixel rendering */
+  font-family: 'Press Start 2P', 'Atari', monospace; 
+  -webkit-font-smoothing: none; 
+  font-smooth: never;
+}
+
+/* OS */
+#os {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* SIDE MENU */
+.side-menu {
+  position: absolute;
+  left: 6vw; /* Positioned nicely on the left */
+  top: 0;
+  bottom: 90px; /* Confined above the bottom bar to prevent overlap */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Centers them vertically */
+  gap: 5vh; /* Flexible spacing so they don't overlap each other */
+  z-index: 5;
+}
+
+.menu-icon {
+  font-size: 50px; /* Made the symbols large */
+  color: #a855f7;
+  text-align: center;
+  line-height: 1;
+  /* Glowing purple effect matching the theme */
+  text-shadow: 0 0 10px #a855f7, 0 0 25px #a855f7, 0 0 40px #a855f7;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  font-family: sans-serif; /* Fallback for unicode symbols */
+}
+
+.menu-icon:hover {
+  transform: scale(1.15); /* Slight pop effect on hover */
+  text-shadow: 0 0 15px #a855f7, 0 0 30px #a855f7, 0 0 50px #a855f7;
+}
+
+/* STARS */
+.star {
+  position: absolute;
+  color: #a855f7;
+  animation: twinkle 2s infinite alternate;
+  font-size: 18px;
+}
+
+@keyframes twinkle {
+  from { opacity: 0.3; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.3); }
+}
+
+/* RING */
+.ring {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 600px;
+  height: 600px;
+  border: 5px solid #a855f7;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 40px #a855f7;
+  z-index: 1; /* Keeping it behind the bottom bar */
+}
+
+/* PLANET */
+.planet {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, #a855f7, black);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 40px #a855f7;
+  z-index: 2;
+}
+
+/* BOTTOM BAR */
+.bottom {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 90px;
+  display: flex;
+  background: black; /* Solid background to hide the ring behind it */
+  z-index: 10; /* Forces the bar on top of the ring and planet */
+}
+
+.slot {
+  flex: 1;
+  border-top: 4px solid #a855f7;
+  border-right: 2px solid #a855f7;
+  box-shadow: 0 0 20px #a855f7 inset;
+  
+  /* Added for symbol centering and styling */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 60px; /* Big enough to fill most of the 90px height */
+  color: #a855f7;
+  text-shadow: 0 0 10px #a855f7, 0 0 25px #a855f7, 0 0 40px #a855f7;
+  font-family: sans-serif; /* Fallback for unicode symbols */
+}
+
+.slot:last-child {
+  border-right: none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="screen">
+
+<div id="boot"></div>
+
+<div id="os">
+
+<!-- ADDED SYMBOLS MENU -->
+<div class="side-menu">
+  <div class="menu-icon">𖡎</div>
+  <div class="menu-icon">␥</div>
+  <div class="menu-icon">✎ᝰ</div>
+  <div class="menu-icon">𖠩</div>
+  <div class="menu-icon">𖦹</div>
+</div>
+
+<div class="ring"></div>
+<div class="planet"></div>
+
+<div class="bottom">
+  <!-- Added the specific requested symbols to the slots -->
+  <div class="slot">𝕸</div>
+  <div class="slot">𓃢</div>
+  <div class="slot">🀦</div>
+</div>
+
+<script>
+for (let i = 0; i < 80; i++) {
+  let star = document.createElement("div");
+  star.className = "star";
+  star.innerText = "*";
+  star.style.top = Math.random() * 100 + "%";
+  star.style.left = Math.random() * 100 + "%";
+  star.style.animationDuration = (Math.random() * 2 + 1) + "s";
+  document.getElementById("os").appendChild(star);
+}
+</script>
+
+</div>
+</div>
+
+<script>
+const bootText = `
+INITIALIZING MEMORY NET...
+第三インターネット接続中...
+
+> Establishing connection...
+> Routing through layers...
+> Entering The Memory Net...
+
+Created by Akira Kaminaga,
+Sakura Evernight,
+& Garlichaus.
+
+SYSTEM READY.
+`;
+
+let i = 0;
+function typeBoot() {
+  if (i < bootText.length) {
+    document.getElementById("boot").innerHTML += bootText.charAt(i);
+    i++;
+    setTimeout(typeBoot, 30);
+  } else {
+    setTimeout(() => {
+      document.getElementById("boot").style.display = "none";
+      document.getElementById("os").style.display = "block";
+    }, 1000);
+  }
+}
+
+typeBoot();
+</script>
+
+</body>
+</html>
