@@ -1,0 +1,2891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Net OS</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --theme-color: #a855f7;
+  --theme-rgb: 168, 85, 247;
+  --screen-brightness: 1;
+}
+
+@font-face {
+  font-family: 'Atari';
+  src: url('https://fonts.cdnfonts.com/s/14882/AtariClassic-Regular.woff') format('woff');
+}
+
+/* GLOBAL CUSTOM CURSOR - ☞ Rotated Up, Glowing */
+* {
+  cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3Cfilter id='glow'%3E%3CfeGaussianBlur stdDeviation='1.5' result='blur'/%3E%3CfeMerge%3E%3CfeMergeNode in='blur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3Ctext x='16' y='16' font-size='22' fill='%23a855f7' filter='url(%23glow)' transform='rotate(-90 16 16)' text-anchor='middle' dominant-baseline='central'%3E☞%3C/text%3E%3C/svg%3E") 16 4, auto !important;
+}
+
+body {
+  margin: 0;
+  background: black;
+  overflow: hidden;
+  font-family: 'Atari', monospace;
+  color: var(--theme-color);
+  user-select: none;
+}
+
+/* CRT EFFECT */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(var(--theme-rgb),0.08),
+    rgba(var(--theme-rgb),0.08) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  pointer-events: none;
+  animation: flicker 0.15s infinite;
+  z-index: 999;
+}
+
+@keyframes flicker {
+  0% { opacity: 0.9; }
+  50% { opacity: 1; }
+  100% { opacity: 0.92; }
+}
+
+#screen {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: inset 0 0 120px rgba(var(--theme-rgb),0.4);
+  filter: brightness(var(--screen-brightness));
+}
+
+#boot {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: black;
+  padding: 40px;
+  white-space: pre-line;
+  font-size: 14px;
+  line-height: 1.8;
+  font-family: 'Press Start 2P', 'Atari', monospace; 
+  -webkit-font-smoothing: none; 
+}
+
+#os {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.draggable-container {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 100;
+  transition: transform 0.1s ease-out;
+}
+
+.menu-icon {
+  font-size: 55px;
+  color: var(--theme-color);
+  text-align: center;
+  line-height: 1;
+  text-shadow: 0 0 10px var(--theme-color), 0 0 25px var(--theme-color), 0 0 40px var(--theme-color);
+  font-family: sans-serif;
+}
+
+.symbol-label {
+  margin-top: 10px;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 10px;
+  color: var(--theme-color);
+  text-shadow: 0 0 5px var(--theme-color);
+  opacity: 0;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.fade-out {
+  animation: fadeOutLabel 2.5s forwards;
+}
+
+@keyframes fadeOutLabel {
+  0% { opacity: 1; transform: translateY(0); }
+  20% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(10px); }
+}
+
+.star {
+  position: absolute;
+  color: var(--theme-color);
+  animation: twinkle 2s infinite alternate;
+  font-size: 18px;
+}
+
+@keyframes twinkle {
+  from { opacity: 0.3; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.3); }
+}
+
+.ring {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 600px;
+  height: 600px;
+  border: 5px solid var(--theme-color);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 40px var(--theme-color);
+  z-index: 1;
+}
+
+.planet {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, var(--theme-color), black);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 40px var(--theme-color);
+  z-index: 2;
+}
+
+.bottom {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 90px;
+  display: flex;
+  background: black;
+  z-index: 200;
+}
+
+.slot {
+  flex: 1;
+  border-top: 4px solid var(--theme-color);
+  border-right: 2px solid var(--theme-color);
+  box-shadow: 0 0 20px var(--theme-color) inset;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 60px;
+  color: var(--theme-color);
+  text-shadow: 0 0 10px var(--theme-color), 0 0 25px var(--theme-color), 0 0 40px var(--theme-color);
+  font-family: sans-serif;
+}
+
+.slot:last-child {
+  border-right: none;
+}
+
+@keyframes levitate {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.slot-icon {
+  display: inline-block;
+  pointer-events: none;
+}
+
+.slot:hover .slot-icon {
+  animation: levitate 1.5s infinite ease-in-out;
+}
+
+#custom-tooltip {
+  position: fixed;
+  pointer-events: none;
+  opacity: 0;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--theme-color);
+  text-shadow: 0 0 5px var(--theme-color);
+  z-index: 1000;
+  transition: opacity 0.1s;
+  white-space: nowrap;
+}
+
+.os-window {
+  position: absolute;
+  width: 320px;
+  background: rgba(15, 5, 25, 0.85); 
+  border: 2px solid var(--theme-color);
+  box-shadow: 0 0 15px rgba(var(--theme-rgb),0.6), inset 0 0 10px rgba(var(--theme-rgb),0.2);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(5px);
+  font-family: 'Press Start 2P', monospace;
+  z-index: 500;
+}
+
+.os-window-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(var(--theme-rgb), 0.2);
+  border-bottom: 2px solid var(--theme-color);
+  padding: 8px 12px;
+}
+
+.os-window-close {
+  color: var(--theme-color);
+  font-size: 14px;
+  text-shadow: 0 0 5px var(--theme-color);
+  transition: color 0.2s, text-shadow 0.2s;
+  user-select: none;
+}
+
+.os-window-close:hover {
+  color: #fff;
+  text-shadow: 0 0 10px #fff, 0 0 20px var(--theme-color);
+}
+
+.os-window-btn {
+  color: var(--theme-color);
+  font-size: 14px;
+  text-shadow: 0 0 5px var(--theme-color);
+  transition: color 0.2s, text-shadow 0.2s;
+  user-select: none;
+  cursor: inherit;
+}
+
+.os-window-btn:hover {
+  color: #fff;
+  text-shadow: 0 0 10px #fff, 0 0 20px var(--theme-color);
+}
+
+.fav-btn.active {
+  color: #fff;
+  text-shadow: 0 0 10px #fff, 0 0 20px var(--theme-color);
+}
+
+.os-window-title {
+  font-size: 10px;
+  color: var(--theme-color);
+  text-shadow: 0 0 5px var(--theme-color);
+  flex-grow: 1;
+  text-align: center;
+  pointer-events: none;
+}
+
+.os-window-spacer {
+  width: 14px; 
+}
+
+.os-window-content {
+  padding: 25px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.os-window-content::-webkit-scrollbar {
+  width: 6px;
+}
+.os-window-content::-webkit-scrollbar-track {
+  background: rgba(var(--theme-rgb), 0.1);
+}
+.os-window-content::-webkit-scrollbar-thumb {
+  background: var(--theme-color);
+  box-shadow: 0 0 5px var(--theme-color);
+}
+
+/* BROWSER WINDOW STYLES */
+.resizable-window {
+  resize: both;
+  overflow: hidden;
+  min-width: 350px;
+  min-height: 250px;
+}
+
+.browser-content {
+  padding: 0 !important;
+  max-height: none !important;
+  height: calc(100% - 35px) !important;
+  overflow: hidden !important;
+  display: flex !important;
+}
+
+.os-window-link {
+  font-size: 11px;
+  color: var(--theme-color);
+  text-shadow: 0 0 8px var(--theme-color);
+  text-decoration: none;
+  transition: all 0.2s;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.os-window-link:hover {
+  color: #fff;
+  text-shadow: 0 0 12px #fff, 0 0 25px var(--theme-color);
+  transform: scale(1.05);
+}
+
+.os-text-content {
+  font-size: 10px;
+  color: var(--theme-color);
+  text-shadow: 0 0 5px var(--theme-color);
+  line-height: 1.8;
+  text-align: left;
+  white-space: pre-line;
+}
+
+.start-menu-link {
+  font-size: 10px;
+  color: var(--theme-color);
+  text-shadow: 0 0 8px var(--theme-color);
+  text-decoration: none;
+  transition: all 0.2s;
+  text-align: left;
+  line-height: 1.5;
+  display: block;
+}
+
+.start-menu-link:hover {
+  color: #fff;
+  text-shadow: 0 0 12px #fff, 0 0 25px var(--theme-color);
+  transform: scale(1.02) translateX(5px);
+}
+
+.gb-input, .gb-textarea, select.gb-input {
+  background: #000;
+  color: var(--theme-color);
+  font-family: 'Atari', monospace;
+  border: 1px solid var(--theme-color);
+  box-shadow: 0 0 8px rgba(var(--theme-rgb),0.3), inset 0 0 8px rgba(var(--theme-rgb),0.3);
+  text-shadow: 0 0 5px var(--theme-color);
+  padding: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  font-size: 10px;
+  outline: none;
+}
+.gb-textarea {
+  resize: none;
+  height: 70px;
+}
+.gb-btn {
+  background: #000;
+  color: var(--theme-color);
+  font-family: 'Atari', monospace;
+  border: 1px solid var(--theme-color);
+  box-shadow: 0 0 8px rgba(var(--theme-rgb),0.3), inset 0 0 8px rgba(var(--theme-rgb),0.3);
+  text-shadow: 0 0 5px var(--theme-color);
+  padding: 10px 15px;
+  font-size: 10px;
+  transition: all 0.2s;
+  width: 100%;
+}
+.gb-btn:hover {
+  background: var(--theme-color);
+  color: #000;
+  box-shadow: 0 0 15px var(--theme-color), inset 0 0 10px #000;
+  text-shadow: none;
+}
+.gb-entries-container {
+  margin-top: 15px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+.gb-entries-container::-webkit-scrollbar {
+  width: 6px;
+}
+.gb-entries-container::-webkit-scrollbar-track {
+  background: rgba(var(--theme-rgb), 0.1);
+}
+.gb-entries-container::-webkit-scrollbar-thumb {
+  background: var(--theme-color);
+  box-shadow: 0 0 5px var(--theme-color);
+}
+.gb-entry {
+  margin-bottom: 15px;
+  font-size: 10px;
+  color: var(--theme-color);
+  text-shadow: 0 0 5px var(--theme-color);
+  line-height: 1.6;
+  border-top: 1px dashed rgba(var(--theme-rgb),0.5);
+  padding-top: 10px;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* PROGRESS BAR STYLES */
+.progress-bg {
+  width: 100%;
+  height: 20px;
+  background: #000;
+  border: 1px solid var(--theme-color);
+  position: relative;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--theme-color);
+  width: 0%;
+  box-shadow: 0 0 15px var(--theme-color);
+}
+
+/* FOLDER GRID STYLES */
+.folder-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  justify-items: center;
+}
+.folder-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: inherit;
+  width: 80px;
+  text-align: center;
+  transition: transform 0.2s;
+}
+.folder-item:hover {
+  transform: scale(1.05);
+}
+.folder-icon {
+  font-size: 35px;
+  color: var(--theme-color);
+  text-shadow: 0 0 10px var(--theme-color), 0 0 20px var(--theme-color);
+  margin-bottom: 8px;
+  font-family: sans-serif;
+  line-height: 1;
+}
+.folder-label {
+  font-size: 8px;
+  color: var(--theme-color);
+  text-shadow: 0 0 5px var(--theme-color);
+  font-family: 'Press Start 2P', monospace;
+  line-height: 1.4;
+}
+
+/* CALENDAR STYLES */
+.calendar-day {
+  width: 35px;
+  height: 35px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(var(--theme-rgb),0.4);
+  cursor: inherit;
+  font-size: 10px;
+  color: var(--theme-color);
+  font-family: 'Press Start 2P', monospace;
+  position: relative;
+  transition: background 0.2s, transform 0.2s;
+}
+.calendar-day:hover {
+  background: rgba(var(--theme-rgb),0.3);
+  transform: scale(1.1);
+}
+.calendar-day.marked {
+  box-shadow: 0 0 15px var(--theme-color), inset 0 0 10px var(--theme-color);
+  border: 1px solid var(--theme-color);
+  color: #fff;
+  text-shadow: 0 0 5px #fff;
+}
+
+/* CUSTOM BRIGHTNESS SLIDER */
+.brightness-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(var(--theme-rgb), 0.3);
+  outline: none;
+  margin: 20px 0;
+}
+.brightness-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  background: var(--theme-color);
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--theme-color);
+}
+</style>
+</head>
+
+<body>
+
+<div id="screen">
+  <div id="boot"></div>
+
+  <div id="os">
+    <div class="draggable-container" style="left: 8vw; top: 15vh;" data-label="Communications">
+      <div class="menu-icon">𖡎</div>
+      <div class="symbol-label">Communications</div>
+    </div>
+
+    <div class="draggable-container" style="left: 8vw; top: 30vh;" data-label="Discovery">
+      <div class="menu-icon">␥</div>
+      <div class="symbol-label">Discovery</div>
+    </div>
+
+    <div class="draggable-container" style="left: 8vw; top: 45vh;" data-label="Creative">
+      <div class="menu-icon">✎ᝰ</div>
+      <div class="symbol-label">Creative</div>
+    </div>
+
+    <div class="draggable-container" style="left: 8vw; top: 60vh;" data-label="ShopZone">
+      <div class="menu-icon">𖠩</div>
+      <div class="symbol-label">ShopZone</div>
+    </div>
+
+    <div class="draggable-container" style="left: 8vw; top: 75vh;" data-label="Gaming">
+      <div class="menu-icon">𖦹</div>
+      <div class="symbol-label">Gaming</div>
+    </div>
+
+    <div class="draggable-container" style="right: 8vw; top: 15vh;" data-label="Merge">
+        <div class="menu-icon">⎙</div>
+        <div class="symbol-label">Merge</div>
+    </div>
+    
+    <div class="draggable-container" id="recycle-bin" style="right: 8vw; top: 30vh;" data-label="Recycle">
+        <div class="menu-icon">♲</div>
+        <div class="symbol-label">Recycle</div>
+    </div>
+
+    <div class="draggable-container" style="right: 8vw; top: 45vh;" data-label="Net Navigator">
+        <div class="menu-icon">🗺</div>
+        <div class="symbol-label">Net Navigator</div>
+    </div>
+
+    <div class="ring"></div>
+    <div class="planet"></div>
+
+    <div id="start-menu" class="os-window" style="display: none; position: absolute; bottom: 100px; left: 10px; width: 380px;">
+      <div class="os-window-content" style="padding: 15px; gap: 20px;">
+        <a class="start-menu-link" onclick="openWhatIsWindow()">What is The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯</a>
+        <a class="start-menu-link" onclick="openHowToUseWindow()">How do I use The Memory Net? (╭ರ_•́)</a>
+        <a class="start-menu-link" onclick="openGuestbookWindow()">Sign The Guestbook!  𐦂𖨆𐀪</a>
+        <a class="start-menu-link" onclick="openFilesWindow()">Files 🗁</a>
+        <a class="start-menu-link" onclick="openOptionsWindow()">Options ↻</a>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="slot" id="btn-start" data-tooltip="Start"><span class="slot-icon">𝕸</span></div>
+      <div class="slot" id="btn-fox" data-tooltip="Fox Drop"><span class="slot-icon">𓃢</span></div>
+      <div class="slot" id="btn-cards" data-tooltip="Favorite Pages"><span class="slot-icon">🀦</span></div>
+    </div>
+
+    <div id="custom-tooltip"></div>
+  </div>
+</div>
+
+<script>
+// --- GLOBAL DATA ---
+let favoritePages = [
+    { label: 'GOG', url: 'https://www.gog.com/' },
+    { label: 'Mastodon', url: 'https://joinmastodon.org/' },
+    { label: 'Are.na', url: 'https://www.are.na/' },
+    { label: 'Lemmy', url: 'https://join-lemmy.org/' }
+];
+
+// --- I18N / TRANSLATION ENGINE ---
+let currentLang = 'en';
+
+const i18n = {
+  fr: {
+    "Communications": "Communications", "Discovery": "Découverte", "Creative": "Créatif", "ShopZone": "Boutique", "Gaming": "Jeu", "Merge": "Fusionner", "Recycle": "Corbeille",
+    "Files 🗁": "Fichiers 🗁", "Options ↻": "Options ↻", "Brightness": "Luminosité", "Language": "Langue", "Color Palette": "Palette de couleurs", "Typeface": "Police de caractères",
+    "Contact Support": "Contacter le support", "Reset Options": "Réinitialiser les options", "Start": "Démarrer", "Favorite Pages": "Pages favorites", "Fox Drop": "Renard",
+    "What is The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯": "Qu'est-ce que The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯", "How do I use The Memory Net? (╭ರ_•́)": "Comment utiliser The Memory Net? (╭ರ_•́)",
+    "Sign The Guestbook!  𐦂𖨆𐀪": "Signez le livre d'or!  𐦂𖨆𐀪", "English": "Anglais", "French": "Français", "Japanese": "Japonais", "Chinese": "Chinois", "Spanish": "Espagnol", "German": "Allemand"
+  },
+  ja: {
+    "Communications": "通信", "Discovery": "発見", "Creative": "クリエイティブ", "ShopZone": "ショップゾーン", "Gaming": "ゲーム", "Merge": "マージ", "Recycle": "ごみ箱",
+    "Files 🗁": "ファイル 🗁", "Options ↻": "オプション ↻", "Brightness": "明るさ", "Language": "言語", "Color Palette": "カラーパレット", "Typeface": "書体",
+    "Contact Support": "サポートに連絡", "Reset Options": "オプションをリセット", "Start": "スタート", "Favorite Pages": "お気に入り", "Fox Drop": "キツネドロップ",
+    "What is The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯": "The Memory Net とは？ 𐔌 𐰁 ᶻ 𝗓  𐦯", "How do I use The Memory Net? (╭ರ_•́)": "The Memory Net の使い方は？ (╭ರ_•́)",
+    "Sign The Guestbook!  𐦂𖨆𐀪": "ゲストブックに署名！  𐦂𖨆𐀪", "English": "英語", "French": "フランス語", "Japanese": "日本語", "Chinese": "中国語", "Spanish": "スペイン語", "German": "ドイツ語"
+  },
+  zh: {
+    "Communications": "通讯", "Discovery": "发现", "Creative": "创意", "ShopZone": "购物区", "Gaming": "游戏", "Merge": "合并", "Recycle": "回收站",
+    "Files 🗁": "文件 🗁", "Options ↻": "选项 ↻", "Brightness": "亮度", "Language": "语言", "Color Palette": "调色板", "Typeface": "字体",
+    "Contact Support": "联系支持", "Reset Options": "重置选项", "Start": "开始", "Favorite Pages": "收藏页面", "Fox Drop": "狐狸",
+    "What is The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯": "什么是 The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯", "How do I use The Memory Net? (╭ರ_•́)": "如何使用 The Memory Net? (╭ರ_•́)",
+    "Sign The Guestbook!  𐦂𖨆𐀪": "签名留言簿！  𐦂𖨆𐀪", "English": "英语", "French": "法语", "Japanese": "日语", "Chinese": "中文", "Spanish": "西班牙语", "German": "德语"
+  },
+  es: {
+    "Communications": "Comunicaciones", "Discovery": "Descubrimiento", "Creative": "Creativo", "ShopZone": "Zona de compras", "Gaming": "Juegos", "Merge": "Fusionar", "Recycle": "Papelera",
+    "Files 🗁": "Archivos 🗁", "Options ↻": "Opciones ↻", "Brightness": "Brillo", "Language": "Idioma", "Color Palette": "Paleta de colores", "Typeface": "Tipo de letra",
+    "Contact Support": "Contactar soporte", "Reset Options": "Restablecer opciones", "Start": "Inicio", "Favorite Pages": "Páginas favoritas", "Fox Drop": "Zorro",
+    "What is The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯": "¿Qué es The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯", "How do I use The Memory Net? (╭ರ_•́)": "¿Cómo uso The Memory Net? (╭ರ_•́)",
+    "Sign The Guestbook!  𐦂𖨆𐀪": "¡Firma el libro de visitas!  𐦂𖨆𐀪", "English": "Inglés", "French": "Francés", "Japanese": "Japonés", "Chinese": "Chino", "Spanish": "Español", "German": "Alemán"
+  },
+  de: {
+    "Communications": "Kommunikation", "Discovery": "Entdeckung", "Creative": "Kreativ", "ShopZone": "Einkaufszone", "Gaming": "Spiele", "Merge": "Zusammenführen", "Recycle": "Papierkorb",
+    "Files 🗁": "Dateien 🗁", "Options ↻": "Optionen ↻", "Brightness": "Helligkeit", "Language": "Sprache", "Color Palette": "Farbpalette", "Typeface": "Schriftart",
+    "Contact Support": "Support kontaktieren", "Reset Options": "Optionen zurücksetzen", "Start": "Start", "Favorite Pages": "Lieblingsseiten", "Fox Drop": "Fuchs",
+    "What is The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯": "Was ist The Memory Net? 𐔌 𐰁 ᶻ 𝗓  𐦯", "How do I use The Memory Net? (╭ರ_•́)": "Wie benutze ich The Memory Net? (╭ರ_•́)",
+    "Sign The Guestbook!  𐦂𖨆𐀪": "Trag dich ins Gästebuch ein!  𐦂𖨆𐀪", "English": "Englisch", "French": "Französisch", "Japanese": "Japanisch", "Chinese": "Chinesisch", "Spanish": "Spanisch", "German": "Deutsch"
+  }
+};
+
+function translateStr(str) {
+    if (!str) return str;
+    let key = str.trim();
+    if (currentLang === 'en') return key;
+    if (i18n[currentLang] && i18n[currentLang][key]) {
+        return i18n[currentLang][key];
+    }
+    return key;
+}
+
+function translateNode(el) {
+    if(!el.dataset.en) el.dataset.en = el.innerText;
+    el.innerText = translateStr(el.dataset.en);
+}
+
+function applyTranslations(root = document) {
+    const selectors = ['.start-menu-link', '.symbol-label', '.os-window-title', '.os-window-link', '.folder-label', '.gb-btn'];
+    selectors.forEach(sel => {
+        root.querySelectorAll(sel).forEach(translateNode);
+        if (root.matches && root.matches(sel)) translateNode(root);
+    });
+    
+    const tooltipNodes = root.querySelectorAll('.slot');
+    tooltipNodes.forEach(el => {
+        if(!el.dataset.en) el.dataset.en = el.getAttribute('data-tooltip');
+        el.setAttribute('data-tooltip', translateStr(el.dataset.en));
+    });
+    if (root.matches && root.matches('.slot')) {
+        if(!root.dataset.en) root.dataset.en = root.getAttribute('data-tooltip');
+        root.setAttribute('data-tooltip', translateStr(root.dataset.en));
+    }
+}
+
+function setLanguage(lang) {
+    currentLang = lang;
+    applyTranslations(document);
+    const win = document.getElementById('win-language');
+    if (win) win.remove();
+}
+
+// Automatically translate new windows/elements when they are created
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach(mutation => {
+        if (mutation.addedNodes.length > 0) {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1) applyTranslations(node);
+            });
+        }
+    });
+});
+observer.observe(document.getElementById('os'), { childList: true, subtree: true });
+
+function openLanguageWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-language', 'Language', [
+    { label: 'English', action: () => setLanguage('en') },
+    { label: 'French', action: () => setLanguage('fr') },
+    { label: 'Japanese', action: () => setLanguage('ja') },
+    { label: 'Chinese', action: () => setLanguage('zh') },
+    { label: 'Spanish', action: () => setLanguage('es') },
+    { label: 'German', action: () => setLanguage('de') }
+  ], screenCenterX + 30, screenCenterY + 30);
+}
+
+
+// --- DRAG LOGIC ---
+let activeElement = null;
+let offset = { x: 0, y: 0 };
+let isDragging = false;
+let startPos = { x: 0, y: 0 };
+
+const containers = document.querySelectorAll('.draggable-container');
+
+containers.forEach(container => {
+  container.addEventListener('mousedown', startDrag);
+  container.addEventListener('touchstart', startDrag, { passive: false });
+
+  container.addEventListener('click', (e) => {
+    const dist = Math.hypot(e.clientX - startPos.x, e.clientY - startPos.y);
+    if (dist < 5) {
+      showLabel(container);
+    }
+  });
+});
+
+function startDrag(e) {
+  activeElement = e.currentTarget;
+  const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+  const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+  
+  startPos.x = clientX;
+  startPos.y = clientY;
+  
+  const rect = activeElement.getBoundingClientRect();
+  offset.x = clientX - rect.left;
+  offset.y = clientY - rect.top;
+  
+  isDragging = true;
+  document.addEventListener('mousemove', drag);
+  document.addEventListener('mouseup', endDrag);
+  document.addEventListener('touchmove', drag, { passive: false });
+  document.addEventListener('touchend', endDrag);
+}
+
+function drag(e) {
+  if (!isDragging || !activeElement) return;
+  e.preventDefault();
+
+  const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+  const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+
+  let x = clientX - offset.x;
+  let y = clientY - offset.y;
+
+  const winW = window.innerWidth;
+  const winH = window.innerHeight - 100;
+
+  x = Math.max(0, Math.min(x, winW - activeElement.offsetWidth));
+  y = Math.max(0, Math.min(y, winH - activeElement.offsetHeight));
+
+  activeElement.style.left = x + 'px';
+  activeElement.style.top = y + 'px';
+}
+
+function askRecycleFile(appElement, appName, isMergedFile) {
+   const winId = 'win-recycle-file-' + Math.floor(Math.random() * 1000);
+   createOSWindow(winId, 'Delete or remove from desktop?', [
+      { label: 'Delete', action: () => {
+          appElement.remove();
+          if(isMergedFile) {
+              dynamicFileSystem = dynamicFileSystem.filter(f => f.label !== appName);
+              const w = document.getElementById('win-files');
+              if(w) { w.remove(); openFilesWindow(); }
+          }
+          document.getElementById(winId)?.remove();
+      }},
+      { label: 'Remove from desktop', action: () => {
+          appElement.remove();
+          document.getElementById(winId)?.remove();
+      }}
+   ], 250, 200);
+}
+
+function endDrag() {
+  if (isDragging && activeElement) {
+    const recycleBin = document.getElementById('recycle-bin');
+    if (activeElement !== recycleBin && activeElement.classList.contains('draggable-container')) {
+      const rect1 = activeElement.getBoundingClientRect();
+      const rect2 = recycleBin.getBoundingClientRect();
+      
+      const overlap = !(rect1.right < rect2.left || 
+                        rect1.left > rect2.right || 
+                        rect1.bottom < rect2.top || 
+                        rect1.top > rect2.bottom);
+                        
+      if (overlap) {
+        const isMergedApp = activeElement.classList.contains('merged-app');
+        const isMergedFile = activeElement.classList.contains('merged-file-app');
+        const isStandardShortcut = activeElement.classList.contains('standard-shortcut');
+        const appName = activeElement.getAttribute('data-label') || (activeElement.querySelector('.symbol-label') ? activeElement.querySelector('.symbol-label').innerText : 'App');
+        
+        if (isMergedFile || isStandardShortcut) {
+           askRecycleFile(activeElement, appName, isMergedFile);
+        } else {
+           askRecycle(activeElement, !isMergedApp, appName);
+        }
+      }
+    }
+  }
+
+  isDragging = false;
+  activeElement = null;
+  document.removeEventListener('mousemove', drag);
+  document.removeEventListener('mouseup', endDrag);
+  document.removeEventListener('touchmove', drag);
+  document.removeEventListener('touchend', endDrag);
+}
+
+function showLabel(container) {
+  const label = container.querySelector('.symbol-label');
+  label.classList.remove('fade-out');
+  void label.offsetWidth; 
+  label.classList.add('fade-out');
+}
+
+// --- DESKTOP CONTEXT MENU ---
+function openDesktopIconMenu(appName, containerElement, openAction) {
+  const winId = 'win-desktop-menu-' + Math.floor(Math.random() * 10000);
+  
+  const items = [
+    {
+       label: 'Remove file from desktop',
+       action: () => {
+          const w = document.getElementById(winId);
+          if(w) w.remove();
+          containerElement.remove();
+       }
+    },
+    {
+       label: 'Open file',
+       action: () => {
+          const w = document.getElementById(winId);
+          if(w) w.remove();
+          if(openAction) openAction();
+       }
+    }
+  ];
+
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow(winId, appName, items, screenCenterX, screenCenterY);
+}
+
+// --- OS BROWSER WINDOW SYSTEM ---
+function openBrowserWindow(titleText, url) {
+  const id = 'win-browser-' + Math.floor(Math.random() * 10000);
+  let existingWin = document.getElementById(id);
+  if (existingWin) { existingWin.style.zIndex = ++windowZIndexCounter; return; }
+
+  const win = document.createElement('div');
+  win.id = id;
+  win.className = 'os-window resizable-window';
+  win.style.width = '70vw';
+  win.style.height = '65vh';
+  const safeX = Math.max(20, (window.innerWidth * 0.15));
+  const safeY = Math.max(20, (window.innerHeight * 0.15));
+  win.style.left = safeX + 'px';
+  win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const bringToFront = () => win.style.zIndex = ++windowZIndexCounter;
+  win.addEventListener('mousedown', bringToFront);
+  win.addEventListener('touchstart', bringToFront, {passive: true});
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'os-window-close';
+  closeBtn.innerText = 'X';
+  closeBtn.onclick = () => win.remove();
+
+  const title = document.createElement('div');
+  title.className = 'os-window-title';
+  title.innerText = titleText;
+  title.style.flexGrow = '1';
+  title.style.textAlign = 'left';
+  title.style.paddingLeft = '15px';
+  title.style.pointerEvents = 'none';
+
+  const controls = document.createElement('div');
+  controls.style.display = 'flex';
+  controls.style.gap = '10px';
+  controls.style.alignItems = 'center';
+  controls.style.pointerEvents = 'auto';
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content browser-content';
+  
+  const iframe = document.createElement('iframe');
+  iframe.src = url;
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = 'none';
+  iframe.style.backgroundColor = '#fff';
+
+  // Back Button
+  const backBtn = document.createElement('div');
+  backBtn.className = 'os-window-btn';
+  backBtn.innerText = '◀';
+  backBtn.onclick = (e) => {
+      e.stopPropagation();
+      try { iframe.contentWindow.history.back(); } catch(err) {}
+  };
+
+  // Forward Button
+  const fwdBtn = document.createElement('div');
+  fwdBtn.className = 'os-window-btn';
+  fwdBtn.innerText = '▶';
+  fwdBtn.onclick = (e) => {
+      e.stopPropagation();
+      try { iframe.contentWindow.history.forward(); } catch(err) {}
+  };
+
+  // Favorite Button
+  const favBtn = document.createElement('div');
+  favBtn.className = 'os-window-btn fav-btn';
+  const isFav = favoritePages.some(p => p.url === url);
+  if(isFav) favBtn.classList.add('active');
+  favBtn.innerText = isFav ? '⚑' : '⚐';
+  favBtn.onclick = (e) => {
+      e.stopPropagation();
+      if(favoritePages.some(p => p.url === url)) return; // already added
+      
+      const confirmId = 'win-fav-confirm-' + Math.floor(Math.random()*1000);
+      createOSWindow(confirmId, 'Add to favorites?', [
+          { label: 'Yes', action: () => {
+              favoritePages.push({label: titleText, url: url});
+              favBtn.classList.add('active');
+              favBtn.innerText = '⚑';
+              document.getElementById(confirmId)?.remove();
+          }},
+          { label: 'No', action: () => {
+              document.getElementById(confirmId)?.remove();
+          }}
+      ], safeX + 40, safeY + 40);
+  };
+
+  let preMaxBounds = { w: '', h: '', x: '', y: '' };
+
+  // Minimize (Restore) Button
+  const minBtn = document.createElement('div');
+  minBtn.className = 'os-window-btn';
+  minBtn.innerText = '🗗';
+  minBtn.onclick = (e) => {
+      e.stopPropagation();
+      if(win.getAttribute('data-maximized') === 'true') {
+          win.style.width = preMaxBounds.w;
+          win.style.height = preMaxBounds.h;
+          win.style.left = preMaxBounds.x;
+          win.style.top = preMaxBounds.y;
+          win.classList.add('resizable-window');
+          win.setAttribute('data-maximized', 'false');
+      }
+  };
+
+  // Maximize Button
+  const maxBtn = document.createElement('div');
+  maxBtn.className = 'os-window-btn';
+  maxBtn.innerText = '🗖';
+  maxBtn.onclick = (e) => {
+      e.stopPropagation();
+      if(win.getAttribute('data-maximized') !== 'true') {
+          preMaxBounds = { w: win.style.width, h: win.style.height, x: win.style.left, y: win.style.top };
+          win.style.width = '100vw';
+          win.style.height = 'calc(100vh - 90px)'; // leave room for bottom bar
+          win.style.left = '0px';
+          win.style.top = '0px';
+          win.classList.remove('resizable-window');
+          win.setAttribute('data-maximized', 'true');
+      }
+  };
+
+  controls.appendChild(backBtn);
+  controls.appendChild(fwdBtn);
+  controls.appendChild(favBtn);
+  controls.appendChild(minBtn);
+  controls.appendChild(maxBtn);
+
+  header.appendChild(closeBtn);
+  header.appendChild(title);
+  header.appendChild(controls);
+  win.appendChild(header);
+
+  content.appendChild(iframe);
+  win.appendChild(content);
+
+  document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+// --- OS WINDOW SYSTEM ---
+let windowZIndexCounter = 500;
+
+function createOSWindow(id, titleText, items, startX, startY) {
+  let existingWin = document.getElementById(id);
+  if (existingWin) {
+    existingWin.style.zIndex = ++windowZIndexCounter;
+    return;
+  }
+
+  const win = document.createElement('div');
+  win.id = id;
+  win.className = 'os-window';
+  const safeX = Math.max(0, Math.min(startX, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(startY, window.innerHeight - 50));
+  win.style.left = safeX + 'px';
+  win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const bringToFront = () => win.style.zIndex = ++windowZIndexCounter;
+  win.addEventListener('mousedown', bringToFront);
+  win.addEventListener('touchstart', bringToFront, {passive: true});
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'os-window-close';
+  closeBtn.innerText = 'X';
+  closeBtn.onclick = () => win.remove();
+
+  const title = document.createElement('div');
+  title.className = 'os-window-title';
+  title.innerText = titleText;
+
+  const spacer = document.createElement('div');
+  spacer.className = 'os-window-spacer';
+
+  header.appendChild(closeBtn);
+  header.appendChild(title);
+  header.appendChild(spacer);
+  win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+
+  items.forEach(item => {
+    const link = document.createElement('a');
+    link.className = 'os-window-link';
+    link.innerText = item.label;
+    
+    if (item.url) {
+      link.href = '#';
+      link.onclick = (e) => {
+        e.preventDefault();
+        openBrowserWindow(item.label, item.url);
+      };
+    } else if (item.action) {
+      link.onclick = (e) => {
+        e.preventDefault();
+        item.action();
+      };
+    }
+    content.appendChild(link);
+  });
+
+  win.appendChild(content);
+  document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+function createOSTextWindow(id, titleText, textContent, startX, startY) {
+  let existingWin = document.getElementById(id);
+  if (existingWin) {
+    existingWin.style.zIndex = ++windowZIndexCounter;
+    return;
+  }
+
+  const win = document.createElement('div');
+  win.id = id;
+  win.className = 'os-window';
+  const safeX = Math.max(0, Math.min(startX, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(startY, window.innerHeight - 50));
+  win.style.left = safeX + 'px';
+  win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const bringToFront = () => win.style.zIndex = ++windowZIndexCounter;
+  win.addEventListener('mousedown', bringToFront);
+  win.addEventListener('touchstart', bringToFront, {passive: true});
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'os-window-close';
+  closeBtn.innerText = 'X';
+  closeBtn.onclick = () => win.remove();
+
+  const title = document.createElement('div');
+  title.className = 'os-window-title';
+  title.innerText = titleText;
+
+  const spacer = document.createElement('div');
+  spacer.className = 'os-window-spacer';
+
+  header.appendChild(closeBtn);
+  header.appendChild(title);
+  header.appendChild(spacer);
+  win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+
+  const textPara = document.createElement('div');
+  textPara.className = 'os-text-content';
+  textPara.innerText = textContent;
+  content.appendChild(textPara);
+
+  win.appendChild(content);
+  document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+function makeWindowDraggable(win, header) {
+  let isDraggingWin = false;
+  let startX, startY, initialX, initialY;
+
+  const dragStart = (e) => {
+    // Ignore clicks on header buttons and do not drag if maximized
+    if (e.target.classList.contains('os-window-close') || e.target.classList.contains('os-window-btn')) return;
+    if (win.getAttribute('data-maximized') === 'true') return;
+    
+    isDraggingWin = true;
+    win.style.zIndex = ++windowZIndexCounter;
+    const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    startX = clientX;
+    startY = clientY;
+    initialX = win.offsetLeft;
+    initialY = win.offsetTop;
+    document.addEventListener('mousemove', dragMove);
+    document.addEventListener('mouseup', dragEnd);
+    document.addEventListener('touchmove', dragMove, { passive: false });
+    document.addEventListener('touchend', dragEnd);
+  };
+
+  const dragMove = (e) => {
+    if (!isDraggingWin) return;
+    e.preventDefault();
+    const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+    
+    let newX = initialX + dx;
+    let newY = initialY + dy;
+    
+    // Prevent eclipsing screen bounds so X is always reachable
+    newX = Math.max(-win.offsetWidth + 60, Math.min(newX, window.innerWidth - 60));
+    newY = Math.max(0, Math.min(newY, window.innerHeight - 40));
+    
+    win.style.left = newX + 'px';
+    win.style.top = newY + 'px';
+  };
+
+  const dragEnd = () => {
+    isDraggingWin = false;
+    document.removeEventListener('mousemove', dragMove);
+    document.removeEventListener('mouseup', dragEnd);
+    document.removeEventListener('touchmove', dragMove);
+    document.removeEventListener('touchend', dragEnd);
+  };
+
+  header.addEventListener('mousedown', dragStart);
+  header.addEventListener('touchstart', dragStart, { passive: false });
+}
+
+function createIconGridWindow(id, titleText, items, startX, startY) {
+  let existingWin = document.getElementById(id);
+  if (existingWin) {
+    existingWin.style.zIndex = ++windowZIndexCounter;
+    return;
+  }
+
+  const win = document.createElement('div');
+  win.id = id;
+  win.className = 'os-window';
+  const safeX = Math.max(0, Math.min(startX, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(startY, window.innerHeight - 50));
+  win.style.left = safeX + 'px';
+  win.style.top = safeY + 'px';
+  win.style.width = '380px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const bringToFront = () => win.style.zIndex = ++windowZIndexCounter;
+  win.addEventListener('mousedown', bringToFront);
+  win.addEventListener('touchstart', bringToFront, {passive: true});
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'os-window-close';
+  closeBtn.innerText = 'X';
+  closeBtn.onclick = () => win.remove();
+
+  const title = document.createElement('div');
+  title.className = 'os-window-title';
+  title.innerText = titleText;
+
+  const spacer = document.createElement('div');
+  spacer.className = 'os-window-spacer';
+
+  header.appendChild(closeBtn);
+  header.appendChild(title);
+  header.appendChild(spacer);
+  win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content folder-grid';
+
+  items.forEach(item => {
+    const folderDiv = document.createElement('div');
+    folderDiv.className = 'folder-item';
+    folderDiv.onclick = (e) => {
+      e.stopPropagation();
+      if (item.action) item.action();
+    };
+
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'folder-icon';
+    iconDiv.innerText = item.icon || '🗁';
+
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'folder-label';
+    labelDiv.innerText = item.label;
+
+    folderDiv.appendChild(iconDiv);
+    folderDiv.appendChild(labelDiv);
+    content.appendChild(folderDiv);
+  });
+
+  win.appendChild(content);
+  document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+// --- OPTIONS & SUPPORT LOGIC ---
+function updateTheme(hex, r, g, b) {
+  document.documentElement.style.setProperty('--theme-color', hex);
+  document.documentElement.style.setProperty('--theme-rgb', `${r}, ${g}, ${b}`);
+  
+  const svgCursor = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3Cfilter id='glow'%3E%3CfeGaussianBlur stdDeviation='1.5' result='blur'/%3E%3CfeMerge%3E%3CfeMergeNode in='blur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3Ctext x='16' y='16' font-size='22' fill='%23${hex.substring(1)}' filter='url(%23glow)' transform='rotate(-90 16 16)' text-anchor='middle' dominant-baseline='central'%3E☞%3C/text%3E%3C/svg%3E`;
+  
+  let style = document.getElementById('dynamic-cursor');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'dynamic-cursor';
+    document.head.appendChild(style);
+  }
+  style.innerHTML = `* { cursor: url("${svgCursor}") 16 4, auto !important; }`;
+}
+
+function updateBrightness(val) {
+  document.documentElement.style.setProperty('--screen-brightness', val);
+}
+
+function openBrightnessWindow() {
+  const id = 'win-brightness';
+  let existingWin = document.getElementById(id);
+  if (existingWin) { existingWin.style.zIndex = ++windowZIndexCounter; return; }
+
+  const startX = Math.max(20, (window.innerWidth / 2) - 150);
+  const startY = Math.max(20, (window.innerHeight / 2) - 100);
+
+  const win = document.createElement('div');
+  win.id = id; win.className = 'os-window'; win.style.width = '300px';
+  win.style.left = startX + 'px'; win.style.top = startY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+  const closeBtn = document.createElement('div'); closeBtn.className = 'os-window-close'; closeBtn.innerText = 'X'; closeBtn.onclick = () => win.remove();
+  const title = document.createElement('div'); title.className = 'os-window-title'; title.innerText = 'Brightness';
+  const spacer = document.createElement('div'); spacer.className = 'os-window-spacer';
+  header.appendChild(closeBtn); header.appendChild(title); header.appendChild(spacer); win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+  
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '0.2';
+  slider.max = '2.0';
+  slider.step = '0.1';
+  slider.className = 'brightness-slider';
+  const currentB = getComputedStyle(document.documentElement).getPropertyValue('--screen-brightness').trim() || 1;
+  slider.value = currentB;
+  
+  slider.oninput = (e) => updateBrightness(e.target.value);
+
+  content.appendChild(slider);
+  win.appendChild(content); document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+function openColorPaletteWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-color-palette', 'Color Palette', [
+    { label: 'Wild Strawberry - #FF3D94', action: () => updateTheme('#FF3D94', 255, 61, 148) },
+    { label: 'Medium Red Violet - #B5307E', action: () => updateTheme('#B5307E', 181, 48, 126) },
+    { label: 'Daisy Bush - #6A2A98', action: () => updateTheme('#6A2A98', 106, 42, 152) },
+    { label: 'Meteorite - #3F1C6D', action: () => updateTheme('#3F1C6D', 63, 28, 109) },
+    { label: 'Violet - #210B4B', action: () => updateTheme('#210B4B', 33, 11, 75) }
+  ], screenCenterX + 30, screenCenterY + 30);
+}
+
+function openResetOptionsWindow() {
+  createOSWindow('win-reset-options', 'Reset Options?', [
+    { label: 'Yes', action: () => {
+        updateTheme('#a855f7', 168, 85, 247);
+        updateBrightness(1);
+        document.getElementById('win-reset-options').remove();
+    }},
+    { label: 'No', action: () => {
+        document.getElementById('win-reset-options').remove();
+    }}
+  ], 250, 200);
+}
+
+function updateTypeface(fontName) {
+  const fontId = 'dynamic-font-link';
+  let link = document.getElementById(fontId);
+  if (!link) {
+    link = document.createElement('link');
+    link.id = fontId;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+  const formattedName = fontName.replace(/ /g, '+');
+  link.href = `https://fonts.googleapis.com/css2?family=${formattedName}&display=swap`;
+
+  let style = document.getElementById('dynamic-typeface');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'dynamic-typeface';
+    document.head.appendChild(style);
+  }
+  style.innerHTML = `body, #boot, .symbol-label, #custom-tooltip, .os-window, .folder-label, .calendar-day, .gb-input, .gb-textarea, select.gb-input, .gb-btn, .os-window-title, .os-window-content, .os-window-link, .start-menu-link, .os-text-content, .gb-entry { font-family: '${fontName}', sans-serif !important; }`;
+}
+
+function openTypefaceWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-typeface', 'Typeface', [
+    { label: 'Boldonse', action: () => updateTypeface('Boldonse') },
+    { label: 'Saira', action: () => updateTypeface('Saira') },
+    { label: 'Smooch Sans', action: () => updateTypeface('Smooch Sans') },
+    { label: 'Share Tech', action: () => updateTypeface('Share Tech') },
+    { label: 'Datatype', action: () => updateTypeface('Datatype') },
+    { label: 'Orbitron', action: () => updateTypeface('Orbitron') },
+    { label: 'Doto', action: () => updateTypeface('Doto') },
+    { label: 'Indie Flower', action: () => updateTypeface('Indie Flower') },
+    { label: 'Press Start 2P', action: () => updateTypeface('Press Start 2P') }
+  ], screenCenterX + 30, screenCenterY + 30);
+}
+
+function openOptionsWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-options', 'Options ↻', [
+    { label: 'Brightness', action: openBrightnessWindow },
+    { label: 'Language', action: openLanguageWindow },
+    { label: 'Color Palette', action: openColorPaletteWindow },
+    { label: 'Typeface', action: openTypefaceWindow },
+    { label: 'Contact Support', action: openContactSupportWindow },
+    { label: 'Reset Options', action: () => {
+        const resetWinId = 'win-reset-confirm-' + Math.floor(Math.random() * 1000);
+        createOSWindow(resetWinId, 'Are you sure you want to reset your Options?', [
+            { label: 'Yes', action: () => {
+                updateTheme('#a855f7', 168, 85, 247);
+                updateBrightness(1);
+                document.getElementById(resetWinId).remove();
+            }},
+            { label: 'No', action: () => {
+                document.getElementById(resetWinId).remove();
+            }}
+        ], screenCenterX + 40, screenCenterY + 40);
+    }}
+  ], screenCenterX + 20, screenCenterY + 20);
+}
+
+function openContactSupportWindow() {
+  const id = 'win-contact-support';
+  let existingWin = document.getElementById(id);
+  if (existingWin) { existingWin.style.zIndex = ++windowZIndexCounter; return; }
+
+  const startX = Math.max(20, (window.innerWidth / 2) - 150);
+  const startY = Math.max(20, (window.innerHeight / 2) - 150);
+
+  const win = document.createElement('div');
+  win.id = id; win.className = 'os-window'; win.style.width = '300px';
+  win.style.left = startX + 'px'; win.style.top = startY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+  const closeBtn = document.createElement('div'); closeBtn.className = 'os-window-close'; closeBtn.innerText = 'X'; closeBtn.onclick = () => win.remove();
+  const title = document.createElement('div'); title.className = 'os-window-title'; title.innerText = 'Contact Support';
+  const spacer = document.createElement('div'); spacer.className = 'os-window-spacer';
+  header.appendChild(closeBtn); header.appendChild(title); header.appendChild(spacer); win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+  content.style.gap = '10px';
+
+  const topText = document.createElement('div');
+  topText.className = 'os-text-content';
+  topText.innerText = 'Email goes to\nAkirakaminaga@yahoo.com';
+  topText.style.textAlign = 'center';
+
+  const emailInput = document.createElement('input'); emailInput.className = 'gb-input'; emailInput.placeholder = 'YOUR EMAIL...';
+  const subjectInput = document.createElement('input'); subjectInput.className = 'gb-input'; subjectInput.placeholder = 'SUBJECT...';
+  const msgInput = document.createElement('textarea'); msgInput.className = 'gb-textarea'; msgInput.placeholder = 'MESSAGE...';
+  const submitBtn = document.createElement('button'); submitBtn.className = 'gb-btn'; submitBtn.innerText = 'SEND';
+
+  submitBtn.onclick = () => {
+    win.remove();
+    startSupportSendingProcess();
+  };
+
+  content.appendChild(topText); content.appendChild(emailInput); content.appendChild(subjectInput); content.appendChild(msgInput); content.appendChild(submitBtn);
+  win.appendChild(content); document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+function startSupportSendingProcess() {
+  const win = document.createElement('div');
+  win.className = 'os-window'; win.style.width = '300px'; 
+  const safeX = Math.max(0, Math.min(300, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(200, window.innerHeight - 50));
+  win.style.left = safeX + 'px'; win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+  
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+  const barId = 'support-bar-' + Math.floor(Math.random() * 1000);
+  content.innerHTML = `<div style="font-size:10px; margin-bottom:10px;">SENDING...</div><div class="progress-bg"><div id="${barId}" class="progress-fill"></div></div>`;
+  win.appendChild(content);
+  document.getElementById('os').appendChild(win);
+
+  for(let i=0; i<5; i++){
+    let s = document.createElement('div'); s.className='star'; s.innerText='*';
+    s.style.left=Math.random()*90+'%'; s.style.top=Math.random()*90+'%';
+    content.appendChild(s);
+  }
+
+  let prog = 0;
+  function updateBar() {
+    let speed = Math.random() > 0.7 ? 5 : 1; 
+    prog += speed;
+    const bar = document.getElementById(barId);
+    if(bar) bar.style.width = prog + '%';
+    if(prog < 100) setTimeout(updateBar, 50);
+    else {
+      win.remove();
+      createOSTextWindow('win-support-err', 'Error', 'Missing Component, HTML code.', safeX, safeY);
+    }
+  }
+  updateBar();
+}
+
+// --- NEW FILE ACTIONS ---
+function openMissingSoftwareError() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSTextWindow('win-missing-software-error-' + Math.floor(Math.random() * 10000), 'Error', 'Missing Software Component (HTML Code Execution)', screenCenterX, screenCenterY);
+}
+
+function createOSAsciWindow(id, titleText, textContent, startX, startY) {
+  let existingWin = document.getElementById(id);
+  if (existingWin) {
+    existingWin.style.zIndex = ++windowZIndexCounter;
+    return;
+  }
+
+  const win = document.createElement('div');
+  win.id = id;
+  win.className = 'os-window';
+  const safeX = Math.max(0, Math.min(startX, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(startY, window.innerHeight - 50));
+  win.style.left = safeX + 'px';
+  win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const bringToFront = () => win.style.zIndex = ++windowZIndexCounter;
+  win.addEventListener('mousedown', bringToFront);
+  win.addEventListener('touchstart', bringToFront, {passive: true});
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'os-window-close';
+  closeBtn.innerText = 'X';
+  closeBtn.onclick = () => win.remove();
+
+  const title = document.createElement('div');
+  title.className = 'os-window-title';
+  title.innerText = titleText;
+
+  const spacer = document.createElement('div');
+  spacer.className = 'os-window-spacer';
+
+  header.appendChild(closeBtn);
+  header.appendChild(title);
+  header.appendChild(spacer);
+  win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+
+  const textPara = document.createElement('div');
+  textPara.className = 'os-text-content';
+  textPara.style.whiteSpace = 'pre';
+  textPara.style.overflowX = 'auto';
+  textPara.innerText = textContent;
+  content.appendChild(textPara);
+
+  win.appendChild(content);
+  document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+function openMemoryNetLogo() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  const asciiLogo = 
+    "  _______ _            \n" +
+    " |__   __| |           \n" +
+    "    | |  | |__   ___   \n" +
+    "    | |  | '_ \\ / _ \\  \n" +
+    "    | |  | | | |  __/  \n" +
+    "    |_|  |_| |_|\\___|  \n" +
+    "                       \n" +
+    "  __  __                                 \n" +
+    " |  \\/  |                                \n" +
+    " | \\  / | ___ _ __ ___   ___  _ __ _   _ \n" +
+    " | |\\/| |/ _ \\ '_ ` _ \\ / _ \\| '__| | | |\n" +
+    " | |  | |  __/ | | | | | (_) | |  | |_| |\n" +
+    " |_|  |_|\\___|_| |_| |_|\\___/|_|   \\__, |\n" +
+    "                                    __/ |\n" +
+    "                                   |___/ \n" +
+    "  _   _      _   \n" +
+    " | \\ | |    | |  \n" +
+    " |  \\| | ___| |_ \n" +
+    " | . ` |/ _ \\ __|\n" +
+    " | |\\  |  __/ |_ \n" +
+    " \\_| \\_/\\___|\\__|\n";
+  createOSAsciWindow('win-pic-logo', 'Memory Net Logo', asciiLogo, screenCenterX + 40, screenCenterY + 40);
+}
+
+function openCuteFoxPicture() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  const asciiFox = 
+    "   /\\__//\\ \n" +
+    "  / =  =  \\ \n" +
+    " (    ^    ) \n" +
+    "  \\_  w  _/  \n" +
+    "    \\___/    \n" +
+    "   (     )   \n" +
+    "   //   \\\\   \n" +
+    "  ((     ))  \n" +
+    "   ==   ==   \n";
+  createOSAsciWindow('win-pic-fox', 'Cute Fox', asciiFox, screenCenterX + 50, screenCenterY + 50);
+}
+
+function openPicturesWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-pictures-folder', 'Pictures', [
+    { label: 'Memory Net Logo', action: openMemoryNetLogo },
+    { label: 'Cute Fox', action: openCuteFoxPicture }
+  ], screenCenterX + 30, screenCenterY + 30);
+}
+
+function openStickyNoteWindow() {
+  const id = 'win-stickynote-create';
+  let existingWin = document.getElementById(id);
+  if (existingWin) { existingWin.style.zIndex = ++windowZIndexCounter; return; }
+
+  const startX = Math.max(20, (window.innerWidth / 2) - 150);
+  const startY = Math.max(20, (window.innerHeight / 2) - 100);
+
+  const win = document.createElement('div');
+  win.id = id; win.className = 'os-window'; win.style.width = '300px';
+  win.style.left = startX + 'px'; win.style.top = startY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+  const closeBtn = document.createElement('div'); closeBtn.className = 'os-window-close'; closeBtn.innerText = 'X'; closeBtn.onclick = () => win.remove();
+  const title = document.createElement('div'); title.className = 'os-window-title'; title.innerText = 'New Sticky Note';
+  const spacer = document.createElement('div'); spacer.className = 'os-window-spacer';
+  header.appendChild(closeBtn); header.appendChild(title); header.appendChild(spacer); win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+  
+  const textInput = document.createElement('textarea'); textInput.className = 'gb-textarea'; textInput.placeholder = 'Write your note here...';
+  const submitBtn = document.createElement('button'); submitBtn.className = 'gb-btn'; submitBtn.innerText = 'POST TO DESKTOP';
+
+  submitBtn.onclick = () => {
+    const val = textInput.value.trim();
+    if(!val) return;
+    createStickyNoteIcon(val);
+    win.remove();
+  };
+
+  content.appendChild(textInput); content.appendChild(submitBtn);
+  win.appendChild(content); document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+let stickyNoteCount = 0;
+function createStickyNoteIcon(text) {
+  stickyNoteCount++;
+  const name = 'Note ' + stickyNoteCount;
+  const container = document.createElement('div');
+  container.className = 'draggable-container merged-app'; // Makes it recyclable like merged apps
+  container.setAttribute('data-merged-name', name);
+  container.setAttribute('data-label', name);
+  
+  // Random placement near the middle of the screen
+  const randX = 30 + Math.random() * 20;
+  const randY = 30 + Math.random() * 20;
+  container.style.left = randX + 'vw'; 
+  container.style.top = randY + 'vh';
+  
+  container.innerHTML = `<div class="menu-icon">⿻</div><div class="symbol-label">${name}</div>`;
+  
+  container.onclick = () => {
+    const label = container.querySelector('.symbol-label');
+    label.classList.remove('fade-out'); void label.offsetWidth; label.classList.add('fade-out');
+  };
+
+  container.ondblclick = () => {
+    openDesktopIconMenu(name, container, () => {
+       const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+       const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+       createOSTextWindow('win-sticky-' + stickyNoteCount, name, text, screenCenterX, screenCenterY);
+    });
+  };
+
+  let lastTap = 0;
+  container.addEventListener('touchend', (e) => {
+    let currentTime = new Date().getTime();
+    let tapLength = currentTime - lastTap;
+    if (tapLength < 400 && tapLength > 0) { 
+        openDesktopIconMenu(name, container, () => {
+           const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+           const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+           createOSTextWindow('win-sticky-' + stickyNoteCount, name, text, screenCenterX, screenCenterY);
+        });
+        e.preventDefault(); 
+    }
+    lastTap = currentTime;
+  });
+
+  document.getElementById('os').appendChild(container);
+  
+  // Re-init drag for new sticky icon
+  container.addEventListener('mousedown', startDrag);
+  container.addEventListener('touchstart', startDrag, { passive: false });
+}
+
+// --- CALENDAR LOGIC ---
+const markedDatesData = {};
+const monthDays = {
+  'January': 31, 'February': 29, 'March': 31, 'April': 30, 
+  'May': 31, 'June': 30, 'July': 31, 'August': 31, 
+  'September': 30, 'October': 31, 'November': 30, 'December': 31
+};
+
+function openCalendarWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+
+  createOSWindow('win-calendar-main', 'Calendar', [
+    { label: 'Important Dates', action: openImportantDatesWindow },
+    { label: 'Months', action: openMonthsWindow }
+  ], screenCenterX + 30, screenCenterY + 30);
+}
+
+function openMonthsWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 190);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 150);
+  
+  const items = Object.keys(monthDays).map(m => ({
+    label: m,
+    icon: '🗁',
+    action: () => openMonthView(m)
+  }));
+
+  createIconGridWindow('win-months', 'Months', items, screenCenterX + 50, screenCenterY + 50);
+}
+
+function openMonthView(month) {
+  const id = 'win-month-' + month;
+  let existingWin = document.getElementById(id);
+  if (existingWin) {
+    existingWin.style.zIndex = ++windowZIndexCounter;
+    renderMonthDays(month, existingWin.querySelector('.month-grid'));
+    return;
+  }
+
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 200);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 150);
+
+  const win = document.createElement('div');
+  win.id = id;
+  win.className = 'os-window';
+  const safeX = Math.max(0, Math.min(screenCenterX, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(screenCenterY, window.innerHeight - 50));
+  win.style.left = safeX + 'px';
+  win.style.top = safeY + 'px';
+  win.style.width = '380px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const bringToFront = () => win.style.zIndex = ++windowZIndexCounter;
+  win.addEventListener('mousedown', bringToFront);
+  win.addEventListener('touchstart', bringToFront, {passive: true});
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'os-window-close';
+  closeBtn.innerText = 'X';
+  closeBtn.onclick = () => win.remove();
+
+  const title = document.createElement('div');
+  title.className = 'os-window-title';
+  title.innerText = month;
+
+  const spacer = document.createElement('div');
+  spacer.className = 'os-window-spacer';
+
+  header.appendChild(closeBtn);
+  header.appendChild(title);
+  header.appendChild(spacer);
+  win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content month-grid';
+  content.style.display = 'flex';
+  content.style.flexWrap = 'wrap';
+  content.style.gap = '8px';
+  content.style.justifyContent = 'center';
+  
+  win.appendChild(content);
+  document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+  
+  renderMonthDays(month, content);
+}
+
+function renderMonthDays(month, container) {
+  container.innerHTML = '';
+  const days = monthDays[month];
+  for(let i=1; i<=days; i++) {
+    const dayStr = month + '-' + i;
+    const isMarked = !!markedDatesData[dayStr];
+    
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'calendar-day';
+    
+    if(isMarked) {
+      dayDiv.classList.add('marked');
+      dayDiv.innerHTML = `${i}<br><span style="font-size:8px; margin-top:3px;">⚐</span>`;
+    } else {
+      dayDiv.innerText = i;
+    }
+
+    dayDiv.onclick = () => askMarkImportant(month, i, dayStr);
+    container.appendChild(dayDiv);
+  }
+}
+
+function askMarkImportant(month, day, dayStr) {
+  if (markedDatesData[dayStr]) {
+    createOSWindow('win-ask-mark-' + dayStr, 'Unmark this date?', [
+      { label: 'Yes', action: () => {
+          delete markedDatesData[dayStr];
+          const win = document.getElementById('win-ask-mark-' + dayStr);
+          if(win) win.remove();
+          const monthWin = document.getElementById('win-month-' + month);
+          if(monthWin) renderMonthDays(month, monthWin.querySelector('.month-grid'));
+      }},
+      { label: 'No', action: () => {
+          const win = document.getElementById('win-ask-mark-' + dayStr);
+          if(win) win.remove();
+      }}
+    ], 250, 250);
+    return;
+  }
+
+  const id = 'win-mark-form-' + dayStr;
+  let existingWin = document.getElementById(id);
+  if (existingWin) { existingWin.style.zIndex = ++windowZIndexCounter; return; }
+
+  const win = document.createElement('div');
+  win.id = id; win.className = 'os-window'; win.style.width = '300px';
+  const safeX = Math.max(0, Math.min(300, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(200, window.innerHeight - 50));
+  win.style.left = safeX + 'px'; win.style.top = safeY + 'px'; 
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+  const closeBtn = document.createElement('div'); closeBtn.className = 'os-window-close'; closeBtn.innerText = 'X'; closeBtn.onclick = () => win.remove();
+  const title = document.createElement('div'); title.className = 'os-window-title'; title.innerText = 'Mark ' + dayStr;
+  const spacer = document.createElement('div'); spacer.className = 'os-window-spacer';
+  header.appendChild(closeBtn); header.appendChild(title); header.appendChild(spacer); win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content'; content.style.gap = '10px';
+
+  const timeInput = document.createElement('input'); timeInput.className = 'gb-input'; timeInput.placeholder = 'TIME (e.g. 10:00)'; timeInput.style.marginBottom = '0'; timeInput.style.flex = '2';
+  const ampmSelect = document.createElement('select'); ampmSelect.className = 'gb-input'; ampmSelect.innerHTML = '<option value="AM">AM</option><option value="PM">PM</option>'; ampmSelect.style.marginBottom = '0'; ampmSelect.style.flex = '1';
+  const subjectInput = document.createElement('input'); subjectInput.className = 'gb-input'; subjectInput.placeholder = 'SUBJECT';
+
+  const timeRow = document.createElement('div'); timeRow.style.display = 'flex'; timeRow.style.gap = '10px';
+  timeRow.appendChild(timeInput); timeRow.appendChild(ampmSelect);
+
+  const submitBtn = document.createElement('button'); submitBtn.className = 'gb-btn'; submitBtn.innerText = 'SAVE';
+
+  submitBtn.onclick = () => {
+    const timeVal = timeInput.value.trim();
+    const ampmVal = ampmSelect.value;
+    const subjectVal = subjectInput.value.trim();
+    if(!timeVal || !subjectVal) return;
+
+    markedDatesData[dayStr] = { time: timeVal + ' ' + ampmVal, subject: subjectVal };
+    win.remove();
+    const monthWin = document.getElementById('win-month-' + month);
+    if(monthWin) renderMonthDays(month, monthWin.querySelector('.month-grid'));
+  };
+
+  content.appendChild(timeRow); content.appendChild(subjectInput); content.appendChild(submitBtn);
+  win.appendChild(content); document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+function openImportantDatesWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  
+  let datesArray = Object.keys(markedDatesData);
+  let text = datesArray.map(d => {
+    const data = markedDatesData[d];
+    return '> ' + d.replace('-', ' ') + '\n  Time: ' + data.time + '\n  Subject: ' + data.subject;
+  }).join('\n\n');
+  if(!text) text = 'No important dates marked.';
+  
+  createOSTextWindow('win-important-dates', 'Important Dates', text, screenCenterX + 20, screenCenterY + 20);
+}
+
+// --- FILES LOGIC ---
+function openDesignWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-design-apps', 'Design', [
+    { label: 'Zoho PowerPoint❯❯❯❯', url: 'https://www.zoho.com/show/' },
+    { label: 'JSPaint✐', url: 'https://jspaint.app' },
+    { label: 'FlipAnimation↻ ◁ || ▷ ↺', url: 'https://flipanim.com' },
+    { label: '123VideoEdit[  ▶︎ ]', url: 'https://online-video-cutter.com/video-editor' }
+  ], screenCenterX + 30, screenCenterY + 30);
+}
+
+function openToolsWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-tools-apps', 'Tools', [
+    { label: 'Shortwave Outlook', url: 'https://www.shortwave.com/' },
+    { label: 'Sharepad Coding', url: 'https://sharepad.io/' },
+    { label: 'OneCompiler Coding', url: 'https://onecompiler.com/html' },
+    { label: 'Download', url: 'https://digimag.neocities.org/new' },
+    { label: 'Excel', url: 'https://www.quadratichq.com/' },
+    { label: 'Write', url: 'https://www.onlinewordpad.com/' },
+    { label: 'Simplenote', url: 'https://simplenote.com/' }
+  ], screenCenterX + 40, screenCenterY + 40);
+}
+
+function openNetworkNavigatorWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-network-navigator', 'Network Navigator', [
+    { label: 'Oldweb.today', url: 'https://oldweb.today/#19960101/http://geocities.com/' },
+    { label: 'The Old Net', url: 'https://theoldnet.com/' },
+    { label: 'Wiby.me', url: 'https://wiby.me/' },
+    { label: 'Marginalia Search', url: 'https://marginalia-search.com/' }
+  ], screenCenterX + 50, screenCenterY + 50);
+}
+
+function openAppsFolderWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 170);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 120);
+  
+  createIconGridWindow('win-files-apps', 'Apps', [
+    { label: 'Communications', icon: '𖡎', action: openCommWindow },
+    { label: 'Discovery', icon: '␥', action: openDiscoveryWindow },
+    { label: 'Creative', icon: '✎ᝰ', action: openCreativeWindow },
+    { label: 'ShopZone', icon: '𖠩', action: openShopZoneWindow },
+    { label: 'Gaming', icon: '𖦹', action: openGamingWindow },
+    { label: 'Merge', icon: '⎙', action: openMergeWindow },
+    { label: 'Recycle', icon: '♲', action: openRecycleWindow }
+  ], screenCenterX + 20, screenCenterY + 20);
+}
+
+function openDonateErrorWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSTextWindow('win-donate-error', 'Error', 'This functionality isn\'t updated yetꜛ!͎ꜜ', screenCenterX, screenCenterY);
+}
+
+function openSourceFolderWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-source-folder', 'Source', [
+    { label: 'Britannica', url: 'https://www.britannica.com/' },
+    { label: 'Scholarpedia', url: 'http://www.scholarpedia.org/' }
+  ], screenCenterX + 40, screenCenterY + 40);
+}
+
+function openFavoritePagesWindow() {
+    const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+    const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+    createOSWindow('win-favorites', 'Favorite Pages', favoritePages, screenCenterX, screenCenterY);
+}
+
+function openFoxDropWindow() {
+  const id = 'win-fox-drop';
+  let existingWin = document.getElementById(id);
+  if (existingWin) { existingWin.style.zIndex = ++windowZIndexCounter; return; }
+
+  const startX = Math.max(20, (window.innerWidth / 2) - 180);
+  const startY = Math.max(20, (window.innerHeight / 2) - 200);
+
+  const win = document.createElement('div');
+  win.id = id; win.className = 'os-window'; win.style.width = '350px';
+  win.style.left = startX + 'px'; win.style.top = startY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+  const closeBtn = document.createElement('div'); closeBtn.className = 'os-window-close'; closeBtn.innerText = 'X'; closeBtn.onclick = () => win.remove();
+  const title = document.createElement('div'); title.className = 'os-window-title'; title.innerText = 'Fox Drop';
+  const spacer = document.createElement('div'); spacer.className = 'os-window-spacer';
+  header.appendChild(closeBtn); header.appendChild(title); header.appendChild(spacer); win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+
+  const links = ["What is Fox Dropping?", "How do I use Fox Drop?", "I want to Fox Drop my file."];
+  links.forEach(txt => {
+    const link = document.createElement('a');
+    link.className = 'os-window-link'; 
+    link.innerText = txt; 
+    link.href = '#';
+    link.onclick = (e) => { e.preventDefault(); };
+    content.appendChild(link);
+  });
+
+  const slotContainer = document.createElement('div');
+  slotContainer.style.display = 'flex'; 
+  slotContainer.style.height = '70px'; 
+  slotContainer.style.background = 'black';
+  slotContainer.style.border = '2px solid var(--theme-color)'; 
+  slotContainer.style.marginTop = '20px'; 
+  slotContainer.style.marginBottom = '15px';
+
+  const slotData = [
+    { icon: '✩', tooltip: 'Perfectly Imperfect, Category: Socials' },
+    { icon: '모', tooltip: 'MyRetroTVs, Category: VideoVault' },
+    { icon: '𖥸', tooltip: 'Green Memories, Category: Games' }
+  ];
+
+  const tooltip = document.getElementById('custom-tooltip');
+  slotData.forEach((data, i) => {
+    const slotDiv = document.createElement('div'); 
+    slotDiv.className = 'slot';
+    slotDiv.style.borderTop = 'none'; 
+    slotDiv.style.fontSize = '35px';
+    if (i === slotData.length - 1) slotDiv.style.borderRight = 'none';
+    slotDiv.setAttribute('data-tooltip', data.tooltip);
+    
+    const iconSpan = document.createElement('span'); 
+    iconSpan.className = 'slot-icon'; 
+    iconSpan.innerText = data.icon;
+    slotDiv.appendChild(iconSpan);
+
+    slotDiv.addEventListener('mouseenter', (e) => { tooltip.innerText = slotDiv.getAttribute('data-tooltip'); tooltip.style.opacity = 1; });
+    slotDiv.addEventListener('mousemove', (e) => { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; });
+    slotDiv.addEventListener('mouseleave', () => { tooltip.style.opacity = 0; });
+    slotContainer.appendChild(slotDiv);
+  });
+  content.appendChild(slotContainer);
+
+  const popText = document.createElement('div'); 
+  popText.className = 'os-text-content'; 
+  popText.innerText = 'Popular User Files!'; 
+  popText.style.textAlign = 'center';
+  content.appendChild(popText);
+
+  const browse = document.createElement('a'); 
+  browse.className = 'os-window-link'; 
+  browse.innerText = 'Browse Files'; 
+  browse.href = '#';
+  browse.onclick = (e) => e.preventDefault(); 
+  browse.style.marginTop = '5px';
+  content.appendChild(browse);
+
+  win.appendChild(content); 
+  document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+// --- FILE CREATION & MERGE LOGIC ---
+
+function openCreateFileMenu() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-create-file-menu', 'Merge a file, add a file to Desktop', [
+    { label: 'Merge a File', action: openFileMergeStep1 },
+    { label: 'Add a File to Desktop', action: openAddFileToDesktop }
+  ], screenCenterX, screenCenterY);
+}
+
+function openAddFileToDesktop() {
+  const items = dynamicFileSystem.map(file => ({
+    label: file.label,
+    action: () => {
+       document.getElementById('win-add-desktop')?.remove();
+       createFileDesktopShortcut(file, false);
+    }
+  }));
+  createOSWindow('win-add-desktop', 'Select file to add to Desktop', items, 150, 150);
+}
+
+function openFileMergeStep1() {
+  const items = dynamicFileSystem.map(file => ({
+    label: file.label,
+    action: () => {
+       document.getElementById('win-merge-file-1')?.remove();
+       openFileMergeStep2(file);
+    }
+  }));
+  createOSWindow('win-merge-file-1', 'Select first file to merge', items, 100, 100);
+}
+
+function openFileMergeStep2(file1) {
+  const items = dynamicFileSystem.map(file => ({
+    label: file.label,
+    action: () => {
+       document.getElementById('win-merge-file-2')?.remove();
+       startFileMergeProcess(file1, file);
+    }
+  }));
+  createOSWindow('win-merge-file-2', 'Select second file to merge', items, 150, 150);
+}
+
+function startFileMergeProcess(file1, file2) {
+  const win = document.createElement('div');
+  win.className = 'os-window'; win.style.width = '300px'; 
+  const safeX = Math.max(0, Math.min(300, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(200, window.innerHeight - 50));
+  win.style.left = safeX + 'px'; win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+  
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+  content.innerHTML = `<div style="font-size:10px; margin-bottom:10px;">MERGING FILES...</div><div class="progress-bg"><div id="file-merge-bar" class="progress-fill"></div></div>`;
+  win.appendChild(content);
+  document.getElementById('os').appendChild(win);
+
+  for(let i=0; i<5; i++){
+    let s = document.createElement('div'); s.className='star'; s.innerText='*';
+    s.style.left=Math.random()*90+'%'; s.style.top=Math.random()*90+'%';
+    content.appendChild(s);
+  }
+
+  let prog = 0;
+  function updateBar() {
+    let speed = Math.random() > 0.7 ? 5 : 1;
+    prog += speed;
+    const bar = document.getElementById('file-merge-bar');
+    if (bar) bar.style.width = prog + '%';
+    if(prog < 100) setTimeout(updateBar, 50);
+    else {
+      win.remove();
+      finishFileMerge(file1, file2);
+    }
+  }
+  updateBar();
+}
+
+function finishFileMerge(file1, file2) {
+  const unstable = ["Donate", "Pictures", "Create a file", "Pre-Installed Games"];
+  if (unstable.includes(file1.label) || unstable.includes(file2.label)) {
+    createOSTextWindow('win-merge-err', 'Error', 'Unable to merge due to Unstable Software.', 300, 200);
+    return;
+  }
+  promptFileMergeName(file1, file2);
+}
+
+function promptFileMergeName(file1, file2) {
+  const id = 'win-file-merge-name';
+  const win = document.createElement('div'); win.id = id; win.className = 'os-window';
+  const safeX = Math.max(0, Math.min(300, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(200, window.innerHeight - 50));
+  win.style.left = safeX + 'px'; win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+  
+  const content = document.createElement('div'); content.className = 'os-window-content';
+  const title = document.createElement('div'); title.className = 'os-text-content'; title.innerText = 'Name your merged file.';
+  const input = document.createElement('input'); input.className = 'gb-input'; input.style.marginTop = '10px';
+  input.value = file1.label + ' + ' + file2.label;
+  const btn = document.createElement('button'); btn.className = 'gb-btn'; btn.innerText = 'OK';
+  
+  btn.onclick = () => {
+    const name = input.value || "Merged File";
+    win.remove();
+    finalizeFileMerge(file1, file2, name);
+  };
+  
+  content.appendChild(title); content.appendChild(input); content.appendChild(btn);
+  win.appendChild(content); document.getElementById('os').appendChild(win);
+}
+
+function extractFileItems(fileObj) {
+  if (fileObj.mergedItems) return fileObj.mergedItems;
+  switch(fileObj.label) {
+    case 'Design': return [
+        { label: 'Zoho PowerPoint❯❯❯❯', url: 'https://www.zoho.com/show/' },
+        { label: 'JSPaint✐', url: 'https://jspaint.app' },
+        { label: 'FlipAnimation↻ ◁ || ▷ ↺', url: 'https://flipanim.com' },
+        { label: '123VideoEdit[  ▶︎ ]', url: 'https://online-video-cutter.com/video-editor' }
+    ];
+    case 'Tools': return [
+        { label: 'Shortwave Outlook', url: 'https://www.shortwave.com/' },
+        { label: 'Sharepad Coding', url: 'https://sharepad.io/' },
+        { label: 'OneCompiler Coding', url: 'https://onecompiler.com/html' },
+        { label: 'Download', url: 'https://digimag.neocities.org/new' },
+        { label: 'Excel', url: 'https://www.quadratichq.com/' },
+        { label: 'Write', url: 'https://www.onlinewordpad.com/' },
+        { label: 'Simplenote', url: 'https://simplenote.com/' }
+    ];
+    case 'Favorite Pages': return favoritePages;
+    case 'Network Navigator': return [
+        { label: 'Oldweb.today', url: 'https://oldweb.today/#19960101/http://geocities.com/' },
+        { label: 'The Old Net', url: 'https://theoldnet.com/' },
+        { label: 'Wiby.me', url: 'https://wiby.me/' },
+        { label: 'Marginalia Search', url: 'https://marginalia-search.com/' }
+    ];
+    case 'Source': return [
+        { label: 'Britannica', url: 'https://www.britannica.com/' },
+        { label: 'Scholarpedia', url: 'http://www.scholarpedia.org/' }
+    ];
+    case 'Apps': return [
+        { label: 'Communications', action: openCommWindow },
+        { label: 'Discovery', action: openDiscoveryWindow },
+        { label: 'Creative', action: openCreativeWindow },
+        { label: 'ShopZone', action: openShopZoneWindow },
+        { label: 'Gaming', action: openGamingWindow },
+        { label: 'Merge', action: openMergeWindow },
+        { label: 'Recycle', action: openRecycleWindow }
+    ];
+    case 'Calendar': return [ { label: 'Open Calendar', action: openCalendarWindow } ];
+    case 'Clock': return [ { label: 'Clock', url: 'https://thisisthesite.neocities.org/' } ];
+    case 'Calculator': return [ { label: 'Calculator', url: 'https://ti84calcultor.com/ti-84-calc/' } ];
+    case 'Sticky Note': return [ { label: 'Create Sticky Note', action: openStickyNoteWindow } ];
+    case 'Pictures': return [ 
+        { label: 'Memory Net Logo', action: openMemoryNetLogo }, 
+        { label: 'Cute Fox', action: openCuteFoxPicture } 
+    ];
+    default: return [ { label: 'Open ' + fileObj.label, action: fileObj.action } ];
+  }
+}
+
+function finalizeFileMerge(file1, file2, name) {
+  let items1 = extractFileItems(file1);
+  let items2 = extractFileItems(file2);
+  let combinedItems = [...items1, ...items2];
+  
+  let newFile = {
+    label: name,
+    icon: '🗁',
+    mergedItems: combinedItems,
+    action: () => {
+       createOSWindow('win-merged-file-' + Math.floor(Math.random()*10000), name, combinedItems, 250, 250);
+    }
+  };
+  
+  dynamicFileSystem.push(newFile);
+  
+  const filesWin = document.getElementById('win-files');
+  if(filesWin) {
+      filesWin.remove();
+      openFilesWindow();
+  }
+  
+  askDesktopShortcut(newFile);
+}
+
+function askDesktopShortcut(fileObj) {
+  createOSWindow('win-ask-shortcut', 'Make a Desktop Shortcut?', [
+    { label: 'Yes', action: () => {
+        document.getElementById('win-ask-shortcut')?.remove();
+        createFileDesktopShortcut(fileObj, true);
+    }},
+    { label: 'No', action: () => {
+        document.getElementById('win-ask-shortcut')?.remove();
+    }}
+  ], 300, 200);
+}
+
+function createFileDesktopShortcut(fileObj, isMerged = true) {
+  const container = document.createElement('div');
+  container.className = 'draggable-container ' + (isMerged ? 'merged-file-app' : 'standard-shortcut');
+  container.setAttribute('data-merged-name', fileObj.label);
+  container.setAttribute('data-label', fileObj.label);
+  
+  const randX = 20 + Math.random() * 40;
+  const randY = 20 + Math.random() * 40;
+  container.style.left = randX + 'vw'; 
+  container.style.top = randY + 'vh';
+  
+  container.innerHTML = `<div class="menu-icon">🗁</div><div class="symbol-label">${fileObj.label}</div>`;
+  
+  container.onclick = () => {
+    const label = container.querySelector('.symbol-label');
+    label.classList.remove('fade-out'); void label.offsetWidth; label.classList.add('fade-out');
+  };
+
+  container.ondblclick = () => {
+    openDesktopIconMenu(fileObj.label, container, () => {
+       if (fileObj.action) fileObj.action();
+    });
+  };
+
+  let lastTap = 0;
+  container.addEventListener('touchend', (e) => {
+    let currentTime = new Date().getTime();
+    let tapLength = currentTime - lastTap;
+    if (tapLength < 400 && tapLength > 0) { 
+        openDesktopIconMenu(fileObj.label, container, () => {
+           if (fileObj.action) fileObj.action();
+        });
+        e.preventDefault(); 
+    }
+    lastTap = currentTime;
+  });
+
+  document.getElementById('os').appendChild(container);
+  container.addEventListener('mousedown', startDrag);
+  container.addEventListener('touchstart', startDrag, { passive: false });
+}
+
+// Global Dynamic File System State
+let dynamicFileSystem = [
+  { label: 'Design', icon: '🗁', action: openDesignWindow },
+  { label: 'Calendar', icon: '🗁', action: openCalendarWindow },
+  { label: 'Tools', icon: '🗁', action: openToolsWindow },
+  { label: 'Apps', icon: '🗁', action: openAppsFolderWindow },
+  { label: 'Source', icon: '🗁', action: openSourceFolderWindow },
+  { label: 'Donate', icon: '🗁', action: openDonateErrorWindow },
+  { label: 'Pre-Installed Games', icon: '🗁', action: () => {} },
+  { label: 'Clock', icon: '🗁', action: () => openBrowserWindow('Clock', 'https://thisisthesite.neocities.org/') },
+  { label: 'Calculator', icon: '🗁', action: () => openBrowserWindow('Calculator', 'https://ti84calcultor.com/ti-84-calc/') },
+  { label: 'Create a file', icon: '🗁', action: openCreateFileMenu },
+  { label: 'Pictures', icon: '🗁', action: openPicturesWindow },
+  { label: 'Sticky Note', icon: '🗁', action: openStickyNoteWindow },
+  { label: 'Favorite Pages', icon: '🗁', action: openFavoritePagesWindow },
+  { label: 'Network Navigator', icon: '🗁', action: openNetworkNavigatorWindow }
+];
+
+function openFilesWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 190);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 150);
+  
+  createIconGridWindow('win-files', 'Files 🗁', dynamicFileSystem, screenCenterX, screenCenterY);
+}
+
+
+// --- GUESTBOOK ---
+function openGuestbookWindow() {
+  const id = 'win-guestbook';
+  let existingWin = document.getElementById(id);
+  if (existingWin) { existingWin.style.zIndex = ++windowZIndexCounter; return; }
+
+  const startX = Math.max(20, (window.innerWidth / 2) - 180);
+  const startY = Math.max(20, (window.innerHeight / 2) - 200);
+
+  const win = document.createElement('div');
+  win.id = id; win.className = 'os-window'; win.style.width = '360px';
+  const safeX = Math.max(0, Math.min(startX, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(startY, window.innerHeight - 50));
+  win.style.left = safeX + 'px'; win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+
+  const header = document.createElement('div');
+  header.className = 'os-window-header';
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'os-window-close'; closeBtn.innerText = 'X'; closeBtn.onclick = () => win.remove();
+  const title = document.createElement('div');
+  title.className = 'os-window-title'; title.innerText = 'Guestbook 𐦂𖨆𐀪';
+  const spacer = document.createElement('div'); spacer.className = 'os-window-spacer';
+  header.appendChild(closeBtn); header.appendChild(title); header.appendChild(spacer); win.appendChild(header);
+
+  const content = document.createElement('div');
+  content.className = 'os-window-content'; content.style.gap = '5px';
+  
+  const nameInput = document.createElement('input'); nameInput.className = 'gb-input'; nameInput.placeholder = 'ENTER NAME...';
+  const msgInput = document.createElement('textarea'); msgInput.className = 'gb-textarea'; msgInput.placeholder = 'ENTER MESSAGE...';
+  const submitBtn = document.createElement('button'); submitBtn.className = 'gb-btn'; submitBtn.innerText = 'SUBMIT';
+  const entriesContainer = document.createElement('div'); entriesContainer.className = 'gb-entries-container';
+
+  const dummyEntry = document.createElement('div'); dummyEntry.className = 'gb-entry';
+  dummyEntry.innerText = "> ID: AKIRA\n> MSG: Welcome to the third layer. Keep it safe.";
+  entriesContainer.appendChild(dummyEntry);
+
+  submitBtn.onclick = () => {
+    const nameVal = nameInput.value.trim() || 'ANONYMOUS';
+    const msgVal = msgInput.value.trim();
+    if (!msgVal) return;
+    nameInput.value = ''; msgInput.value = '';
+    const entryDiv = document.createElement('div'); entryDiv.className = 'gb-entry';
+    entriesContainer.prepend(entryDiv);
+    const fullText = `> ID: ${nameVal}\n> MSG: ${msgVal}`;
+    let i = 0; entryDiv.innerText = "_";
+    function typeChar() {
+      if (i < fullText.length) {
+        entryDiv.innerText = fullText.substring(0, i + 1) + (i < fullText.length - 1 ? "_" : "");
+        i++; entriesContainer.scrollTop = 0;
+        setTimeout(typeChar, Math.random() * 40 + 20);
+      } else { entryDiv.innerText = fullText; }
+    }
+    typeChar();
+  };
+
+  content.appendChild(nameInput); content.appendChild(msgInput); content.appendChild(submitBtn); content.appendChild(entriesContainer);
+  win.appendChild(content); document.getElementById('os').appendChild(win);
+  makeWindowDraggable(win, header);
+}
+
+// --- APP MERGE LOGIC ---
+const mergeData = {
+  categories: ["Socials", "Mail", "Banking", "News", "Message Boards", "Video Vault", "Personal Pages", "ShopZone", "Gaming"],
+  getSites: (cat) => {
+    const siteMap = {
+      "Socials": [
+        { label: 'Mastodon', url: 'https://joinmastodon.org/' },
+        { label: 'Are.na', url: 'https://www.are.na/' },
+        { label: 'Nekoweb.org', url: 'https://nekoweb.org/' }
+      ],
+      "Mail": [
+        { label: 'Guerrilla Mail', url: 'https://www.guerrillamail.com/' },
+        { label: 'SquirrelMail', url: 'https://squirrelmail.org/' },
+        { label: 'CockMail', url: 'https://cock.li/' }
+      ],
+      "Banking": [
+        { label: 'Privacy.com', url: 'https://privacy.com/' },
+        { label: 'Revolut', url: 'https://www.revolut.com/' },
+        { label: 'Monzo', url: 'https://monzo.com/' },
+        { label: 'Moneroxmr', url: 'https://www.getmonero.org/' }
+      ],
+      "News": [
+        { label: 'Global Voices', url: 'https://globalvoices.org/' },
+        { label: 'NPR', url: 'https://www.npr.org/' },
+        { label: '1440', url: 'https://join1440.com/' }
+      ],
+      "Message Boards": [
+        { label: 'Lemmy', url: 'https://join-lemmy.org/' },
+        { label: 'Funkwhale', url: 'https://funkwhale.audio/' },
+        { label: 'Kbin', url: 'https://kbin.pub/' },
+        { label: 'The Midnight Pub', url: 'https://midnight.pub/' },
+        { label: 'MelonLand Forum', url: 'https://forum.melonland.net/' }
+      ],
+      "Video Vault": [
+        { label: 'Vidlii', url: 'https://www.vidlii.com/' },
+        { label: 'Bitchute', url: 'https://www.bitchute.com/' },
+        { label: 'Odysee', url: 'https://odysee.com/' },
+        { label: 'Peertube', url: 'https://joinpeertube.org/' },
+        { label: 'YouView', url: 'https://youview.lol/' }
+      ],
+      "Personal Pages": [
+        { label: 'BMH Online', url: 'https://bmh.neocities.org/' },
+        { label: 'Cini\'s Dreamland', url: 'https://cinni.net/' },
+        { label: 'Hotline Cafe', url: 'https://hotline.neocities.org/' },
+        { label: 'John Nesky Makes Things', url: 'https://www.johnnesky.com/' }
+      ],
+      "ShopZone": [
+        { label: 'VampireFreaks', url: 'https://vampirefreaks.com/' },
+        { label: 'Angry Young & Poor', url: 'https://www.angryyoungandpoor.com/' },
+        { label: 'Heavy Red', url: 'https://heavyred.com/' }
+      ],
+      "Gaming": [
+        { label: 'GOG', url: 'https://www.gog.com/' },
+        { label: 'GamersGate', url: 'https://www.gamersgate.com/' },
+        { label: 'eStarland', url: 'https://www.estarland.com/' }
+      ]
+    };
+    return siteMap[cat] || [];
+  }
+};
+
+function openMergeWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+
+  createOSWindow('win-merge-root', 'Merge', [
+    { label: 'What is Merge⍰', action: () => createOSTextWindow('win-what-merge', 'What is Merge', 'Merge empowers you to take control of your desktop, streamlining access to your most-used applications and categories, and freeing you from clutter.', screenCenterX + 20, screenCenterY + 20) },
+    { label: 'Merge my Apps⭑.ᐟ', action: () => openMergeCategorySelect() }
+  ], screenCenterX, screenCenterY);
+}
+
+function openMergeCategorySelect() {
+  const items = mergeData.categories.map(cat => ({
+    label: cat,
+    action: () => openMergeSecondarySelect(cat)
+  }));
+  createOSWindow('win-merge-cat1', 'Select Category', items, 100, 100);
+}
+
+function openMergeSecondarySelect(cat1) {
+  const items = mergeData.categories.filter(c => c !== cat1).map(cat2 => ({
+    label: cat2,
+    action: () => askConfirmMerge(cat1, cat2)
+  }));
+  createOSWindow('win-merge-cat2', 'Which Category would you like to merge with?', items, 150, 150);
+}
+
+function askConfirmMerge(cat1, cat2) {
+  createOSWindow('win-merge-confirm', 'Would you like to Merge?', [
+    { label: 'Yes', action: () => startMergeProcess(cat1, cat2) },
+    { label: 'No', action: () => {
+        document.getElementById('win-merge-confirm').remove();
+        document.getElementById('win-merge-cat2').remove();
+    }}
+  ], 200, 200);
+}
+
+function startMergeProcess(cat1, cat2) {
+  const win = document.createElement('div');
+  win.className = 'os-window'; win.style.width = '300px'; 
+  const safeX = Math.max(0, Math.min(300, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(200, window.innerHeight - 50));
+  win.style.left = safeX + 'px'; win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+  
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+  content.innerHTML = `<div style="font-size:10px; margin-bottom:10px;">MERGING...</div><div class="progress-bg"><div id="merge-bar" class="progress-fill"></div></div>`;
+  win.appendChild(content);
+  document.getElementById('os').appendChild(win);
+
+  // Add stars/planets to this specific window
+  for(let i=0; i<5; i++){
+    let s = document.createElement('div'); s.className='star'; s.innerText='*';
+    s.style.left=Math.random()*90+'%'; s.style.top=Math.random()*90+'%';
+    content.appendChild(s);
+  }
+
+  let prog = 0;
+  function updateBar() {
+    let speed = Math.random() > 0.7 ? 5 : 1; // Fake slow/fast logic
+    prog += speed;
+    document.getElementById('merge-bar').style.width = prog + '%';
+    if(prog < 100) setTimeout(updateBar, 50);
+    else {
+      win.remove();
+      promptMergeName(cat1, cat2);
+    }
+  }
+  updateBar();
+}
+
+function promptMergeName(cat1, cat2) {
+  const id = 'win-merge-name';
+  const win = document.createElement('div'); win.id = id; win.className = 'os-window';
+  const safeX = Math.max(0, Math.min(300, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(200, window.innerHeight - 50));
+  win.style.left = safeX + 'px'; win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+  
+  const content = document.createElement('div'); content.className = 'os-window-content';
+  const title = document.createElement('div'); title.className = 'os-text-content'; title.innerText = 'Name your Merge.';
+  const input = document.createElement('input'); input.className = 'gb-input'; input.style.marginTop = '10px';
+  const btn = document.createElement('button'); btn.className = 'gb-btn'; btn.innerText = 'OK';
+  
+  btn.onclick = () => {
+    const name = input.value || "New Merge";
+    win.remove();
+    askMergeIcon(cat1, cat2, name);
+  };
+  
+  content.appendChild(title); content.appendChild(input); content.appendChild(btn);
+  win.appendChild(content); document.getElementById('os').appendChild(win);
+}
+
+function askMergeIcon(cat1, cat2, name) {
+  createOSWindow('win-merge-ask-icon', 'Would you like to choose an Icon?', [
+    { label: 'Yes', action: () => chooseMergeIcon(cat1, cat2, name) },
+    { label: 'No', action: () => createMergedIcon(cat1, cat2, name, '𖤘') }
+  ], 300, 200);
+}
+
+function chooseMergeIcon(cat1, cat2, name) {
+  const icons = ["❟❛❟", "☯︎", "☕︎", "㊝", "◕⩊◕", "❀", "𓏲ּ𝄢"];
+  const items = icons.map(i => ({
+    label: i,
+    action: () => createMergedIcon(cat1, cat2, name, i)
+  }));
+  createOSWindow('win-merge-icon-select', 'Choose Icon', items, 300, 200);
+}
+
+function createMergedIcon(cat1, cat2, name, iconChar) {
+  const containers = document.querySelectorAll('.os-window');
+  containers.forEach(c => { if(c.id.includes('merge')) c.remove(); });
+
+  const container = document.createElement('div');
+  container.className = 'draggable-container merged-app';
+  container.setAttribute('data-merged-name', name);
+  container.setAttribute('data-label', name);
+  container.style.left = '20vw'; container.style.top = '40vh';
+  container.innerHTML = `<div class="menu-icon">${iconChar}</div><div class="symbol-label">${name}</div>`;
+  
+  container.onclick = () => {
+    const label = container.querySelector('.symbol-label');
+    label.classList.remove('fade-out'); void label.offsetWidth; label.classList.add('fade-out');
+  };
+
+  container.ondblclick = () => {
+    openDesktopIconMenu(name, container, () => {
+       const combinedSites = [...mergeData.getSites(cat1), ...mergeData.getSites(cat2)];
+       const items = combinedSites.map(s => ({ label: s.label, url: s.url }));
+       createOSWindow('win-merged-content', name, items, 400, 200);
+    });
+  };
+
+  let lastTap = 0;
+  container.addEventListener('touchend', (e) => {
+    let currentTime = new Date().getTime();
+    let tapLength = currentTime - lastTap;
+    if (tapLength < 400 && tapLength > 0) { 
+        openDesktopIconMenu(name, container, () => {
+           const combinedSites = [...mergeData.getSites(cat1), ...mergeData.getSites(cat2)];
+           const items = combinedSites.map(s => ({ label: s.label, url: s.url }));
+           createOSWindow('win-merged-content', name, items, 400, 200);
+        });
+        e.preventDefault(); 
+    }
+    lastTap = currentTime;
+  });
+
+  document.getElementById('os').appendChild(container);
+  // Re-init drag for new icon
+  container.addEventListener('mousedown', startDrag);
+  container.addEventListener('touchstart', startDrag, { passive: false });
+}
+
+function openMergedSub(cat) {
+  const sites = mergeData.getSites(cat);
+  const items = sites.map(s => ({ label: s.label, url: s.url }));
+  createOSWindow('win-sub-' + cat, cat, items, 450, 250);
+}
+
+// --- RECYCLE LOGIC ---
+function askRecycle(appElement, isBaseApp, appName) {
+  const titleText = isBaseApp ? 'Do you want to delete?' : 'Would you like to Recycle?';
+  const winId = 'win-recycle-confirm-' + Math.floor(Math.random() * 1000);
+  createOSWindow(winId, titleText, [
+    { label: 'Yes', action: () => {
+        const w = document.getElementById(winId);
+        if(w) w.remove();
+        startRecycleProcess(appElement, isBaseApp, appName);
+    }},
+    { label: 'No', action: () => {
+        const w = document.getElementById(winId);
+        if(w) w.remove();
+    }}
+  ], 200, 200);
+}
+
+function startRecycleProcess(appElement, isBaseApp, appName) {
+  const win = document.createElement('div');
+  win.className = 'os-window'; win.style.width = '300px'; 
+  const safeX = Math.max(0, Math.min(300, window.innerWidth - 100));
+  const safeY = Math.max(0, Math.min(200, window.innerHeight - 50));
+  win.style.left = safeX + 'px'; win.style.top = safeY + 'px';
+  win.style.zIndex = ++windowZIndexCounter;
+  
+  const content = document.createElement('div');
+  content.className = 'os-window-content';
+  const barId = 'recycle-bar-' + Math.floor(Math.random() * 1000);
+  content.innerHTML = `<div style="font-size:10px; margin-bottom:10px;">DELETING...</div><div class="progress-bg"><div id="${barId}" class="progress-fill"></div></div>`;
+  win.appendChild(content);
+  document.getElementById('os').appendChild(win);
+
+  for(let i=0; i<5; i++){
+    let s = document.createElement('div'); s.className='star'; s.innerText='*';
+    s.style.left=Math.random()*90+'%'; s.style.top=Math.random()*90+'%';
+    content.appendChild(s);
+  }
+
+  let prog = 0;
+  function updateBar() {
+    let speed = Math.random() > 0.7 ? 5 : 1; 
+    prog += speed;
+    const bar = document.getElementById(barId);
+    if(bar) bar.style.width = prog + '%';
+    if(prog < 100) setTimeout(updateBar, 50);
+    else {
+      win.remove();
+      finishRecycle(appElement, isBaseApp, appName);
+    }
+  }
+  updateBar();
+}
+
+function finishRecycle(appElement, isBaseApp, appName) {
+  if (isBaseApp) {
+    createOSTextWindow('win-recycle-error', 'Error', 'You cannot Recycle pre installed Applicationsꜛ!͎ꜜ', 300, 200);
+  } else {
+    appElement.remove();
+  }
+}
+
+function openRecycleWindow() {
+  const mergedApps = document.querySelectorAll('.merged-app');
+  if (mergedApps.length === 0) {
+    createOSTextWindow('win-recycle-empty', 'Recycle', 'There are no merged apps to recycle.', 200, 200);
+    return;
+  }
+  
+  const items = Array.from(mergedApps).map(app => {
+    const name = app.getAttribute('data-merged-name');
+    return {
+      label: name,
+      action: () => {
+         const w = document.getElementById('win-recycle-list');
+         if(w) w.remove();
+         askRecycle(app, false, name);
+      }
+    };
+  });
+  
+  createOSWindow('win-recycle-list', 'Which Apps would you like to Recycle?', items, 250, 250);
+}
+
+// --- REST OF OS FUNCTIONS ---
+function openSocialsWindow(baseX, baseY) {
+  createOSWindow('win-socials', 'Socials 🗣', [
+    { label: 'Mastodon', url: 'https://joinmastodon.org/' },
+    { label: 'Are.na', url: 'https://www.are.na/' },
+    { label: 'Nekoweb.org', url: 'https://nekoweb.org/' }
+  ], baseX + 30, baseY + 30);
+}
+
+function openMailWindow(baseX, baseY) {
+  createOSWindow('win-mail', 'Mail ✉︎', [
+    { label: 'Guerrilla Mail', url: 'https://www.guerrillamail.com/' },
+    { label: 'SquirrelMail', url: 'https://squirrelmail.org/' },
+    { label: 'CockMail', url: 'https://cock.li/' }
+  ], baseX + 60, baseY + 60);
+}
+
+function openBankingWindow(baseX, baseY) {
+  createOSWindow('win-banking', 'Banking🏛', [
+    { label: 'Privacy.com', url: 'https://privacy.com/' },
+    { label: 'Revolut', url: 'https://www.revolut.com/' },
+    { label: 'Monzo', url: 'https://monzo.com/' },
+    { label: 'Moneroxmr', url: 'https://www.getmonero.org/' }
+  ], baseX + 90, baseY + 90);
+}
+
+function openCommWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-comm', 'Communications 𖡎', [
+    { label: 'Socials 🗣', action: () => openSocialsWindow(screenCenterX, screenCenterY) },
+    { label: 'Mail ✉︎', action: () => openMailWindow(screenCenterX, screenCenterY) },
+    { label: 'Banking🏛', action: () => openBankingWindow(screenCenterX, screenCenterY) }
+  ], screenCenterX, screenCenterY);
+}
+
+function openNewsWindow(baseX, baseY) {
+  createOSWindow('win-news', 'News🕮', [
+    { label: 'Global Voices', url: 'https://globalvoices.org/' },
+    { label: 'NPR', url: 'https://www.npr.org/' },
+    { label: '1440', url: 'https://join1440.com/' }
+  ], baseX + 30, baseY + 30);
+}
+
+function openMessageBoardsWindow(baseX, baseY) {
+  createOSWindow('win-messageboards', 'Message Boards✎', [
+    { label: 'Lemmy', url: 'https://join-lemmy.org/' },
+    { label: 'Funkwhale', url: 'https://funkwhale.audio/' },
+    { label: 'Kbin', url: 'https://kbin.pub/' },
+    { label: 'The Midnight Pub', url: 'https://midnight.pub/' },
+    { label: 'MelonLand Forum', url: 'https://forum.melonland.net/' }
+  ], baseX + 60, baseY + 60);
+}
+
+function openDiscoveryWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-discovery', 'Discovery ␥', [
+    { label: 'News🕮', action: () => openNewsWindow(screenCenterX, screenCenterY) },
+    { label: 'Message Boards✎', action: () => openMessageBoardsWindow(screenCenterX, screenCenterY) }
+  ], screenCenterX, screenCenterY);
+}
+
+function openVideoVaultWindow(baseX, baseY) {
+  createOSWindow('win-videovault', 'Video Vault. 📽', [
+    { label: 'Vidlii', url: 'https://www.vidlii.com/' },
+    { label: 'Bitchute', url: 'https://www.bitchute.com/' },
+    { label: 'Odysee', url: 'https://odysee.com/' },
+    { label: 'Peertube', url: 'https://joinpeertube.org/' },
+    { label: 'YouView', url: 'https://youview.lol/' }
+  ], baseX + 30, baseY + 30);
+}
+
+function openPersonalPagesWindow(baseX, baseY) {
+  createOSWindow('win-personalpages', 'Personal Pages㋡', [
+    { label: 'BMH Online', url: 'https://bmh.neocities.org/' },
+    { label: 'Cini\'s Dreamland', url: 'https://cinni.net/' },
+    { label: 'Hotline Cafe', url: 'https://hotline.neocities.org/' },
+    { label: 'John Nesky Makes Things', url: 'https://www.johnnesky.com/' }
+  ], baseX + 60, baseY + 60);
+}
+
+function openCreativeWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-creative', 'Creative ✎ᝰ', [
+    { label: 'Video Vault. 📽', action: () => openVideoVaultWindow(screenCenterX, screenCenterY) },
+    { label: 'Personal Pages㋡', action: () => openPersonalPagesWindow(screenCenterX, screenCenterY) }
+  ], screenCenterX, screenCenterY);
+}
+
+function openShopZoneWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-shopzone', 'ShopZone 𖠩', [
+    { label: 'VampireFreaks', url: 'https://vampirefreaks.com/' },
+    { label: 'Angry Young & Poor', url: 'https://www.angryyoungandpoor.com/' },
+    { label: 'Heavy Red', url: 'https://heavyred.com/' }
+  ], screenCenterX, screenCenterY);
+}
+
+function openGamingWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSWindow('win-gaming', 'Gaming 𖦹', [
+    { label: 'GOG', url: 'https://www.gog.com/' },
+    { label: 'GamersGate', url: 'https://www.gamersgate.com/' },
+    { label: 'eStarland', url: 'https://www.estarland.com/' }
+  ], screenCenterX, screenCenterY);
+}
+
+function openWhatIsWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSTextWindow('win-whatis', 'What is The Memory Net?', 'The Memory Net empowers users with a secure third layer of the internet, championing privacy and freedom by connecting them with carefully curated indie platforms, crafted by dedicated human programmers.', screenCenterX, screenCenterY);
+}
+
+function openHowToUseWindow() {
+  const screenCenterX = Math.max(20, (window.innerWidth / 2) - 160);
+  const screenCenterY = Math.max(20, (window.innerHeight / 2) - 100);
+  createOSTextWindow('win-howtouse', 'How do I use?', 'The Memory Net offers a transformative search experience, diverging from traditional search engines. Each category, represented by an icon, branches out into a wealth of carefully selected websites.', screenCenterX + 30, screenCenterY + 30);
+}
+
+function bindDesktopIcon(labelName, openFunction) {
+  const icon = document.querySelector(`[data-label="${labelName}"]`);
+  if (!icon) return;
+  
+  // Directly trigger the function on double click for pre-installed icons
+  icon.addEventListener('dblclick', (e) => { 
+    openFunction(); 
+  });
+  
+  let lastTap = 0;
+  icon.addEventListener('touchend', (e) => {
+    let currentTime = new Date().getTime();
+    let tapLength = currentTime - lastTap;
+    if (tapLength < 400 && tapLength > 0) { 
+       openFunction(); 
+       e.preventDefault(); 
+    }
+    lastTap = currentTime;
+  });
+}
+
+function openNetNavigator() {
+  openBrowserWindow('Net Navigator', 'https://wiby.me/');
+}
+
+bindDesktopIcon('Communications', openCommWindow);
+bindDesktopIcon('Discovery', openDiscoveryWindow);
+bindDesktopIcon('Creative', openCreativeWindow);
+bindDesktopIcon('ShopZone', openShopZoneWindow);
+bindDesktopIcon('Gaming', openGamingWindow);
+bindDesktopIcon('Merge', openMergeWindow);
+bindDesktopIcon('Recycle', openRecycleWindow);
+bindDesktopIcon('Net Navigator', openNetNavigator);
+
+const tooltip = document.getElementById('custom-tooltip');
+const slots = document.querySelectorAll('.slot');
+slots.forEach(slot => {
+  slot.addEventListener('mouseenter', (e) => { tooltip.innerText = slot.getAttribute('data-tooltip'); tooltip.style.opacity = 1; });
+  slot.addEventListener('mousemove', (e) => { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; });
+  slot.addEventListener('mouseleave', () => { tooltip.style.opacity = 0; });
+});
+
+const startMenu = document.getElementById('start-menu');
+document.getElementById('btn-start').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (startMenu.style.display === 'none' || startMenu.style.display === '') {
+    startMenu.style.display = 'block'; startMenu.style.zIndex = ++windowZIndexCounter;
+  } else { startMenu.style.display = 'none'; }
+});
+
+document.getElementById('btn-cards').addEventListener('click', (e) => { e.stopPropagation(); openFavoritePagesWindow(); });
+document.getElementById('btn-fox').addEventListener('click', (e) => { e.stopPropagation(); openFoxDropWindow(); });
+document.addEventListener('click', (e) => { if (startMenu.style.display === 'block' && !startMenu.contains(e.target)) { startMenu.style.display = 'none'; } });
+
+const osLayer = document.getElementById("os");
+for (let i = 0; i < 80; i++) {
+  let star = document.createElement("div");
+  star.className = "star"; star.innerText = "*";
+  star.style.top = Math.random() * 100 + "%"; star.style.left = Math.random() * 100 + "%";
+  star.style.animationDuration = (Math.random() * 2 + 1) + "s";
+  osLayer.appendChild(star);
+}
+
+const bootText = `
+INITIALIZING MEMORY NET...
+第三インターネット接続中...
+
+> Establishing connection...
+> Routing through layers...
+> Entering The Memory Net...
+
+Created by Akira Kaminaga,
+Sakura Evernight,
+& Garlichaus.
+
+SYSTEM READY.
+`;
+
+let charIndex = 0;
+function typeBoot() {
+  const bootDiv = document.getElementById("boot");
+  if (charIndex < bootText.length) {
+    bootDiv.innerHTML += bootText.charAt(charIndex); charIndex++;
+    setTimeout(typeBoot, 30);
+  } else {
+    setTimeout(() => { bootDiv.style.display = "none"; document.getElementById("os").style.display = "block"; applyTranslations(); }, 1000);
+  }
+}
+
+window.onload = typeBoot;
+</script>
+
+</body>
+</html>
